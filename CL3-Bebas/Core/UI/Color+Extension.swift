@@ -8,9 +8,9 @@
 import SwiftUI
 
 extension Color {
-    static let RedPrimaryBC = Color("#2992E9")
-    static let RedSecondaryBC = Color("#BFE2FF")
-    static let RedAccentBC = Color("#F6FDFF")
+    static let BluePrimaryBC = Color("#2992E9")
+    static let BlueSecondaryBC = Color("#BFE2FF")
+    static let BlueAccentBC = Color("#F6FDFF")
     
     static let RedPrimarySC = Color("#D33838")
     static let RedSecondarySC = Color("#FFE6E6")

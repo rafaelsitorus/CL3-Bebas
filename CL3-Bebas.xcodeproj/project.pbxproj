@@ -10,9 +10,44 @@
 		2654CB872FC5841200582969 /* CL3-Bebas.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "CL3-Bebas.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		5466A5E02FD2CD4300233861 /* Exceptions for "CL3-Bebas" folder in "CL3-Bebas" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Core/ML/.gitkeep,
+				Core/Persistence/.gitkeep,
+				Core/UI/.gitkeep,
+				Data/Models/.gitkeep,
+				Data/Repositories/.gitkeep,
+				Domain/Entities/.gitkeep,
+				Domain/Repositories/.gitkeep,
+				Features/AnalysisSummary/Components/.gitkeep,
+				Features/AnalysisSummary/ViewModels/.gitkeep,
+				Features/AnalysisSummary/Views/.gitkeep,
+				Features/History/Components/.gitkeep,
+				Features/History/ViewModels/.gitkeep,
+				Features/History/Views/.gitkeep,
+				Features/Home/Components/.gitkeep,
+				Features/Home/ViewModels/.gitkeep,
+				Features/Home/Views/.gitkeep,
+				Features/Onboarding/Components/.gitkeep,
+				Features/Onboarding/ViewModels/.gitkeep,
+				Features/Onboarding/Views/.gitkeep,
+				Features/Recording/Components/.gitkeep,
+				Features/Recording/ViewModels/.gitkeep,
+				Features/Recording/Views/.gitkeep,
+				Resources/MLModels/.gitkeep,
+			);
+			target = 2654CB862FC5841200582969 /* CL3-Bebas */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		2654CB892FC5841200582969 /* CL3-Bebas */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				5466A5E02FD2CD4300233861 /* Exceptions for "CL3-Bebas" folder in "CL3-Bebas" target */,
+			);
 			path = "CL3-Bebas";
 			sourceTree = "<group>";
 		};

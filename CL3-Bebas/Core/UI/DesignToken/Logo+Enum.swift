@@ -9,7 +9,7 @@ import Foundation
 
 enum AppIcon {
     // Button
-    static let micIcon = "microphoe.fill"
+    static let micIcon = "microphone.fill"
     static let pauseIcon = "pause.fill"
     static let playIcon = "play.fill"
     static let bulbIcon = "lightbulb.min.badge.exclamationmark"

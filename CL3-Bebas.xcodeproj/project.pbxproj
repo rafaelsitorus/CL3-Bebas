@@ -11,7 +11,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		26C2024F2FD2C10C003A9158 /* Exceptions for "CL3-Bebas" folder in "CL3-Bebas" target */ = {
+		5466A5E02FD2CD4300233861 /* Exceptions for "CL3-Bebas" folder in "CL3-Bebas" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Core/ML/.gitkeep,
@@ -46,7 +46,7 @@
 		2654CB892FC5841200582969 /* CL3-Bebas */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				26C2024F2FD2C10C003A9158 /* Exceptions for "CL3-Bebas" folder in "CL3-Bebas" target */,
+				5466A5E02FD2CD4300233861 /* Exceptions for "CL3-Bebas" folder in "CL3-Bebas" target */,
 			);
 			path = "CL3-Bebas";
 			sourceTree = "<group>";

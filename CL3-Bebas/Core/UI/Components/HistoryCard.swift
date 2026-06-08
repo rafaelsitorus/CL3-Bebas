@@ -74,9 +74,7 @@ struct HistoryCard: View {
 }
 
 struct SpeechIssueBadge: View {
-    
     let issue: SpeechIssue
-    
     var body: some View {
         Text(issue.title)
             .font(Text.CustomFootnote)

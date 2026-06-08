@@ -211,13 +211,10 @@ struct MetricRow: View {
 
 struct PitchScriptText: View {
     var body: some View {
-        Group {
-            Text("Hello, ")
-                .font(Text.LargeTitleRegular.bold()) +
-            Text("I'm practicing my delivery with Spitch to make my next presentation flawless.")
-                .font(Text.LargeTitleRegular)
-                .foregroundColor(.secondary)
-        }
+        Text(
+            "\(Text("Hello, ").bold())\(Text("I'm practicing my delivery with Spitch to make my next presentation flawless.").foregroundStyle(.secondary))"
+        )
+        .font(Text.LargeTitleRegular)
         .multilineTextAlignment(.center)
         .lineSpacing(4)
     }
@@ -225,13 +222,10 @@ struct PitchScriptText: View {
 
 struct PitchScriptTextIndonesia: View {
     var body: some View {
-        Group {
-            Text("Halo, ")
-                .font(Text.LargeTitleRegular.bold()) +
-            Text("Saya sedang berlatih penyampaian saya dengan Pitch Flo agar presentasi saya berikutnya berjalan lancar.")
-                .font(Text.LargeTitleRegular)
-                .foregroundColor(.secondary)
-        }
+        Text(
+            "\(Text("Halo, ").bold())\(Text("Saya sedang berlatih penyampaian saya dengan Spitch agar presentasi saya berikutnya berjalan lancar.").foregroundStyle(.secondary))"
+        )
+        .font(Text.LargeTitleRegular)
         .multilineTextAlignment(.center)
         .lineSpacing(4)
     }

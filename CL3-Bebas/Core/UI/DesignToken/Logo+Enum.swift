@@ -18,6 +18,7 @@ enum AppIcon {
     static let editIcon = "ellipsis"
     static let deleteIcon = "trash"
     static let doneIcon = "checkmark"
+    static let chevronRightIcon = "chevron.right"
     
     // Category
     static let pace = "gauge.with.dots.needle.33percent"

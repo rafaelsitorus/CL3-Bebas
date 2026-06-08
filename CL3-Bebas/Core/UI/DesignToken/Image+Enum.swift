@@ -11,5 +11,5 @@ import Foundation
 enum AppImage {
     static let logoSpitch = "appLogo"
     static let homeScreenIllust = "imageHomeScreen"
-
+    
 }

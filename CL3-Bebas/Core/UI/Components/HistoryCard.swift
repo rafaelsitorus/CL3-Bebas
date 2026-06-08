@@ -50,9 +50,9 @@ struct HistoryCard: View {
                 .font(Text.CustomFootnote)
             
             Divider()
-                .frame(height: 0.1)
+                .frame(height: 1)
                 .background(Color.black)
-                .opacity(0.35)
+                .opacity(0.2)
             
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {

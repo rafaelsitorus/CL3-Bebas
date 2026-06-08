@@ -8,23 +8,28 @@
 import SwiftUI
 
 struct CircleIconButton: View {
-    var body : some View {
-        ZStack {
-            Button(action: {}) {
-                ZStack {
-                    Circle()
-                        .fill(Color.BluePrimaryBC)
-                        .frame(width: 70, height: 70)
-                    
-                    Image(systemName: AppIcon.micIcon)
-                        .foregroundColor(Color.whiteSC)
-                        .font(.system(size: 34, weight: .regular))
-                }
+    let systemName: String
+    var size: CGFloat = 70
+    var iconSize: CGFloat = 30
+    var backgroundColor: Color = Color.BluePrimaryBC
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                Circle()
+                    .fill(backgroundColor)
+                    .frame(width: size, height: size)
+                    .shadow(color: backgroundColor.opacity(0.3), radius: 8, x: 0, y: 4)
+                Image(systemName: systemName)
+                    .foregroundColor(.whiteSC)
+                    .font(.system(size: iconSize, weight: .medium))
             }
         }
+        .buttonStyle(.plain)
     }
 }
 
 #Preview {
-    CircleIconButton()
+    CircleIconButton(systemName: AppIcon.micIcon, action: {})
 }

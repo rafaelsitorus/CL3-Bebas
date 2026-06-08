@@ -36,6 +36,9 @@
 				Features/Recording/Components/.gitkeep,
 				Features/Recording/ViewModels/.gitkeep,
 				Features/Recording/Views/.gitkeep,
+				Features/ReviewSummary/Components/.gitkeep,
+				Features/ReviewSummary/ViewModels/.gitkeep,
+				Features/ReviewSummary/Views/.gitkeep,
 				Resources/MLModels/.gitkeep,
 			);
 			target = 2654CB862FC5841200582969 /* CL3-Bebas */;

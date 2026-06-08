@@ -9,5 +9,4 @@ import Foundation
 
 enum Radius {
     static let MainCard: CGFloat = 25
-    static let smallCard: CGFloat = 10
 }

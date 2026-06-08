@@ -23,6 +23,9 @@ struct MainCard: View {
     let gaugeValue: Double
     let gaugeRange: ClosedRange<Double>
     let goodRange: ClosedRange<Double>
+    let slowLabel: String
+    let rangeLabel: String
+    let fastLabel: String
     
     init(
         color: Color = .RedPrimarySC,
@@ -32,7 +35,10 @@ struct MainCard: View {
         title: String = "Too Fast",
         gaugeValue: Double = 188,
         gaugeRange: ClosedRange<Double> = 60...220,
-        goodRange: ClosedRange<Double> = 130...160
+        goodRange: ClosedRange<Double> = 130...160,
+        slowLabel: String = "Too Slow",
+        rangeLabel: String = "Good Range",
+        fastLabel: String = "Too Fast"
     ) {
         self.color = color
         self.icon = icon
@@ -42,6 +48,9 @@ struct MainCard: View {
         self.gaugeValue = gaugeValue
         self.gaugeRange = gaugeRange
         self.goodRange = goodRange
+        self.slowLabel = slowLabel
+        self.rangeLabel = rangeLabel
+        self.fastLabel = fastLabel
     }
     
     init(
@@ -52,7 +61,10 @@ struct MainCard: View {
         title: String = "Too Fast",
         gaugeValue: Double = 188,
         gaugeRange: ClosedRange<Double> = 60...220,
-        goodRange: ClosedRange<Double> = 130...160
+        goodRange: ClosedRange<Double> = 130...160,
+        slowLabel: String = "Too Slow",
+        rangeLabel: String = "Good Range",
+        fastLabel: String = "Too Fast"
     ) {
         self.init(
             color: Color(color),
@@ -62,7 +74,10 @@ struct MainCard: View {
             title: title,
             gaugeValue: gaugeValue,
             gaugeRange: gaugeRange,
-            goodRange: goodRange
+            goodRange: goodRange,
+            slowLabel: slowLabel,
+            rangeLabel: rangeLabel,
+            fastLabel: fastLabel
         )
     }
     
@@ -82,7 +97,10 @@ struct MainCard: View {
                 value: gaugeValue,
                 range: gaugeRange,
                 goodRange: goodRange,
-                accentColor: color
+                accentColor: color,
+                slowLabel: slowLabel,
+                rangeLabel: rangeLabel,
+                fastLabel: fastLabel
             )
             .padding(.horizontal, 16)
             .padding(.top, 16)
@@ -92,10 +110,7 @@ struct MainCard: View {
         }
         .frame(width: Dimension.width, height: Dimension.height)
         .clipShape(RoundedRectangle(cornerRadius: Radius.MainCard, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: Radius.MainCard, style: .continuous)
-                .stroke(.black, lineWidth: 1)
-        }
+        .shadow(color: .black.opacity(0.25), radius: 2, x: 0, y: 2)
     }
     
     private var header: some View {
@@ -104,16 +119,16 @@ struct MainCard: View {
                 .font(.system(size: 32, weight: .regular))
                 .foregroundColor(.whiteSC.opacity(0.78))
                 .frame(width: 40, height: 40)
-                .padding(.top, 10)
+                .padding(.top, 20)
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(aspect)
-                    .font(Text.Headline)
+                    .font(Text.CustomHeadline)
                     .foregroundColor(.whiteSC)
                     .fixedSize(horizontal: true, vertical: false)
                 
                 Text(title)
-                    .font(.system(size: 42, weight: .bold))
+                    .font(Text.CustomLargeTitle)
                     .foregroundColor(.whiteSC)
                     .lineLimit(1)
                     .fixedSize(horizontal: true, vertical: false)
@@ -124,12 +139,13 @@ struct MainCard: View {
             Spacer(minLength: 0)
             
             Text(displayedScore)
-                .font(.system(size: 24, weight: .regular))
+                .font(Text.CustomBody)
                 .foregroundColor(.whiteSC)
                 .lineLimit(1)
                 .frame(width: Dimension.scoreWidth, alignment: .trailing)
                 .fixedSize(horizontal: false, vertical: false)
                 .padding(.top, 12)
+                .padding(.trailing, 6)
         }
     }
     
@@ -143,6 +159,9 @@ struct LinearGauge: View {
     let range: ClosedRange<Double>
     let goodRange: ClosedRange<Double>
     let accentColor: Color
+    let slowLabel: String
+    let rangeLabel: String
+    let fastLabel: String
     
     private var clampedValue: Double {
         min(max(value, range.lowerBound), range.upperBound)
@@ -158,13 +177,13 @@ struct LinearGauge: View {
     var body: some View {
         VStack(spacing: 8) {
             HStack {
-                Text("Too Slow")
+                Text(slowLabel)
                 Spacer()
-                Text("Good Range")
+                Text(rangeLabel)
                 Spacer()
-                Text("Too Fast")
+                Text(fastLabel)
             }
-            .font(.system(size: 17, weight: .regular))
+            .font(Text.CustomHeadline)
             .foregroundColor(.black)
             
             VStack(spacing: 6) {
@@ -182,19 +201,19 @@ struct LinearGauge: View {
     private var labels: some View {
         GeometryReader { proxy in
             ZStack(alignment: .topLeading) {
-                gaugeLabel(formatted(range.lowerBound), color: .GreyAccentSC)
+                gaugeLabel(formatted(range.lowerBound), color: .GreyAccentSC, isActive: false)
                     .position(x: boundedPosition(for: range.lowerBound, in: proxy.size.width), y: 14)
                 
-                gaugeLabel(formatted(goodRange.lowerBound), color: .GreyAccentSC)
+                gaugeLabel(formatted(goodRange.lowerBound), color: .GreyAccentSC, isActive: false)
                     .position(x: boundedPosition(for: goodRange.lowerBound, in: proxy.size.width), y: 14)
                 
-                gaugeLabel(formatted(goodRange.upperBound), color: .GreyAccentSC)
+                gaugeLabel(formatted(goodRange.upperBound), color: .GreyAccentSC, isActive: false)
                     .position(x: boundedPosition(for: goodRange.upperBound, in: proxy.size.width), y: 14)
                 
-                gaugeLabel(formatted(range.upperBound), color: .GreyAccentSC)
+                gaugeLabel(formatted(range.upperBound), color: .GreyAccentSC, isActive: false)
                     .position(x: boundedPosition(for: range.upperBound, in: proxy.size.width), y: 14)
                 
-                gaugeLabel(formatted(clampedValue), color: accentColor, weight: .bold)
+                gaugeLabel(formatted(clampedValue), color: accentColor, isActive: true)
                     .position(x: boundedCurrentValuePosition(in: proxy.size.width), y: 14)
             }
         }
@@ -204,10 +223,10 @@ struct LinearGauge: View {
     private func gaugeLabel(
         _ text: String,
         color: Color,
-        weight: Font.Weight = .regular
+        isActive: Bool
     ) -> some View {
         Text(text)
-            .font(.system(size: 19, weight: weight))
+            .font(isActive ? Text.CustomHeadline : Text.CustomBody)
             .foregroundColor(color)
             .frame(width: 44)
     }
@@ -236,7 +255,19 @@ struct LinearGauge: View {
 
 struct MainCard_Previews: PreviewProvider {
     static var previews: some View {
-        MainCard(gaugeValue: 180)
+        MainCard(
+            color: .RedPrimarySC,
+            icon: AppIcon.pace,
+            aspect: "Pace",
+            score: "180 WPM",
+            title: "Too Fast",
+            gaugeValue: 180,
+            gaugeRange: 60...220,
+            goodRange: 130...160,
+            slowLabel: "Too Slow",
+            rangeLabel: "Good Range",
+            fastLabel: "Too Fast"
+        )
             .padding(20)
             .previewLayout(.sizeThatFits)
     }

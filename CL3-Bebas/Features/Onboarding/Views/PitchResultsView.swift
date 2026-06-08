@@ -16,13 +16,12 @@ struct PitchResultsView: View {
         VStack(spacing: 0) {
             Spacer()
 
-            VStack(spacing: 6) {
-                Text("See Your Pitch Analysis")
-                    .font(.system(size: 22, weight: .bold))
-                Text("and Summarize")
-                    .font(.system(size: 22, weight: .bold))
+            VStack {
+                Text("See Your Pitch Analysis and Summarize")
+                    .font(Text.LargeTitle)
+    
             }
-            .padding(.horizontal, 24)
+            .padding(.horizontal, 10)
             .multilineTextAlignment(.center)
 
             Spacer().frame(height: 32)

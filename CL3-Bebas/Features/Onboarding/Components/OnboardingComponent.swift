@@ -81,7 +81,6 @@ struct AppIconTile: View {
 // MARK: - Feature Row (Welcome screen)
 
 struct FeatureRow: View {
-    let number: Int
     let icon: String
     let title: String
     let description: String
@@ -90,18 +89,18 @@ struct FeatureRow: View {
         HStack(alignment: .top, spacing: 14) {
             ZStack {
                 Circle()
-                    .fill(Color.BlueSecondaryBC)
+                    .fill(Color.whiteSC)
                     .frame(width: 36, height: 36)
-                Text("\(number)")
-                    .font(.system(size: 14, weight: .bold))
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .medium))
                     .foregroundColor(Color.BluePrimaryBC)
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(Text.Headline)
                     .foregroundColor(.primary)
                 Text(description)
-                    .font(.system(size: 13))
+                    .font(Text.Headline)
                     .foregroundColor(Color.GreyAccentSC)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -214,11 +213,25 @@ struct PitchScriptText: View {
     var body: some View {
         Group {
             Text("Hello, ")
-                .font(.system(size: 22, weight: .bold)) +
-            Text("I'm practicing my delivery with Pitch Flo to make my next presentation flawless.")
-                .font(.system(size: 22, weight: .regular))
+                .font(Text.LargeTitleRegular.bold()) +
+            Text("I'm practicing my delivery with Spitch to make my next presentation flawless.")
+                .font(Text.LargeTitleRegular)
+                .foregroundColor(.secondary)
         }
-        .foregroundColor(.primary)
+        .multilineTextAlignment(.center)
+        .lineSpacing(4)
+    }
+}
+
+struct PitchScriptTextIndonesia: View {
+    var body: some View {
+        Group {
+            Text("Halo, ")
+                .font(Text.LargeTitleRegular.bold()) +
+            Text("Saya sedang berlatih penyampaian saya dengan Pitch Flo agar presentasi saya berikutnya berjalan lancar.")
+                .font(Text.LargeTitleRegular)
+                .foregroundColor(.secondary)
+        }
         .multilineTextAlignment(.center)
         .lineSpacing(4)
     }

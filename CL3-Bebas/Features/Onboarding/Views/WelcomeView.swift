@@ -15,39 +15,38 @@ struct WelcomeView: View {
         VStack(spacing: 0) {
             Spacer()
 
-            // App icon + name
-            VStack(spacing: 14) {
-                AppIconTile(systemName: AppIcon.onboardingIcon1, size: 80, iconSize: 36)
+            VStack() {
+                Image(AppImage.logoSpitch)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 80, height: 80)
                 Text("Spitch")
-                    .font(.system(size: 28, weight: .bold))
+                    .font(Text.LargeTitle)
                 Text("Time to experience personal analysis pitch")
-                    .font(.system(size: 14))
+                    .font(Text.OnboardingCaption)
                     .foregroundColor(Color.GreyAccentSC)
                     .multilineTextAlignment(.center)
             }
 
             Spacer().frame(height: 48)
 
-            // Feature list
+            
             VStack(alignment: .leading, spacing: 20) {
                 FeatureRow(
-                    number: 1,
                     icon: AppIcon.micIcon,
                     title: "Record Your Pitch",
-                    description: "Practice your pitching by recording\nand reviewing it through our analysis."
+                    description: "Practice your pitching by recording and reviewing it through our analysis."
                 )
                 FeatureRow(
-                    number: 2,
                     icon: AppIcon.onboardingIcon2,
                     title: "Analyze Your Pitch",
-                    description: "See metrics like your intonation,\nvolume, pace, articulation, and filler words."
+                    description: "See metrics like your intonation, volume, pace, articulation, and filler words."
                 )
             }
             .padding(.horizontal, 32)
 
             Spacer()
 
-            // Actions
             VStack(spacing: 12) {
                 PrimaryButton(title: "Continue", action: onContinue)
                     .padding(.horizontal, 24)

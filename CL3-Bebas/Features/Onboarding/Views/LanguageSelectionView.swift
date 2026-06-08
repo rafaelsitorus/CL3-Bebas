@@ -15,25 +15,24 @@ struct LanguageSelectionView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            BackButton(action: { dismiss() })
-
+            HStack {
+                BackButton(action: { dismiss() })
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 8)
+            
             Spacer()
 
             // Globe icon
-            AppIconTile(systemName: AppIcon.globe, size: 80, iconSize: 36)
+            AppIconTile(systemName: AppIcon.globe, size: 80, iconSize: 34)
                 .padding(.bottom, 24)
 
             Text("Choose your Language")
-                .font(.system(size: 22, weight: .bold))
-                .padding(.bottom, 12)
+                .font(Text.LargeTitle)
+                .padding(.bottom, 24)
 
-            Text("Select the language you'll use so the system\ncan provide the most precise feedback for your\npitch delivery")
-                .font(.system(size: 14))
-                .foregroundColor(Color.GreyAccentSC)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
-
-            Spacer().frame(height: 36)
+    
 
             // Language options
             VStack(spacing: 10) {
@@ -46,6 +45,13 @@ struct LanguageSelectionView: View {
                 }
             }
             .padding(.horizontal, 24)
+            
+            Spacer().frame(height: 36)
+            
+            Text("Select the language you'll use so the system can provide the most precise feedback for your pitch delivery")
+                .font(Text.Headline)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
 
             Spacer()
 

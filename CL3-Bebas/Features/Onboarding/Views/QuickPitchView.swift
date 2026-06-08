@@ -13,14 +13,20 @@ struct QuickPitchView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            BackButton(action: { dismiss() })
+            HStack {
+                BackButton(action: { dismiss() })
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 8)
 
-            // Title
+            Spacer()
+        
             VStack(spacing: 6) {
                 Text("Try a Quick Pitch")
-                    .font(.system(size: 22, weight: .bold))
+                    .font(Text.LargeTitle)
                 Text("Record yourself reading this pitch below")
-                    .font(.system(size: 14))
+                    .font(Text.Headline)
                     .foregroundColor(Color.GreyAccentSC)
             }
             .padding(.top, 8)
@@ -30,21 +36,26 @@ struct QuickPitchView: View {
             // Script / transcription area
             ZStack {
                 if viewModel.recordingState == .idle || viewModel.recordingState == .playback {
-                    PitchScriptText()
-                        .padding(.horizontal, 32)
+                    // Replace PitchScriptText() calls with this:
+                    if viewModel.selectedLanguage == .english {
+                        PitchScriptText()
+                            .padding(.horizontal, 15)
+                    } else {
+                        PitchScriptTextIndonesia()
+                            .padding(.horizontal, 15)
+                    }
                 } else {
-                    // Show live transcript while recording
                     VStack(spacing: 16) {
                         PitchScriptText()
                             .opacity(0.25)
-                            .padding(.horizontal, 32)
+                            .padding(.horizontal, 15)
 
                         if !viewModel.transcribedText.isEmpty {
                             Text(viewModel.transcribedText)
                                 .font(.system(size: 16))
                                 .foregroundColor(Color.BluePrimaryBC)
                                 .multilineTextAlignment(.center)
-                                .padding(.horizontal, 32)
+                                .padding(.horizontal, 15)
                                 .transition(.opacity)
                         }
                     }
@@ -54,13 +65,6 @@ struct QuickPitchView: View {
 
             Spacer()
 
-            // Divider line (mimics the input underline in mockup)
-            Rectangle()
-                .fill(Color(.systemGray4))
-                .frame(height: 1)
-                .padding(.horizontal, 24)
-
-            Spacer().frame(height: 32)
 
             // Waveform (only during recording)
             if viewModel.recordingState == .recording {

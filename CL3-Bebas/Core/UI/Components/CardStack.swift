@@ -12,32 +12,60 @@ struct CardStackItem: Identifiable {
     let title: String
     let bodyText: String
     let image: Image
+    let bodyIcon: String
+    
+    init(
+        title: String,
+        bodyText: String,
+        image: Image,
+        bodyIcon: String = AppIcon.speaker
+    ) {
+        self.title = title
+        self.bodyText = bodyText
+        self.image = image
+        self.bodyIcon = bodyIcon
+    }
 }
 
 struct CardStack: View {
-    private enum Dimension {
-        static let cardWidth: CGFloat = 230
-        static let cardHeight: CGFloat = 320
-        static let stackHeight: CGFloat = 350
-        static let sideOffset: CGFloat = 54
-        static let farSideOffset: CGFloat = 96
-        static let dragThreshold: CGFloat = 60
-    }
-    
     let cards: [CardStackItem]
+    let cardWidth: CGFloat
+    let cardHeight: CGFloat
+    let stackHeight: CGFloat
+    let sideOffset: CGFloat
+    let farSideOffset: CGFloat
+    let dragThreshold: CGFloat
     
     @State private var selectedIndex = 0
     @GestureState private var dragOffset: CGFloat = 0
     
-    init(cards: [CardStackItem] = CardStack.dummyCards) {
+    init(
+        cards: [CardStackItem] = CardStack.dummyCards,
+        cardWidth: CGFloat = 230,
+        cardHeight: CGFloat = 320,
+        stackHeight: CGFloat? = nil,
+        sideOffset: CGFloat? = nil,
+        farSideOffset: CGFloat? = nil,
+        dragThreshold: CGFloat? = nil
+    ) {
         self.cards = cards
+        self.cardWidth = cardWidth
+        self.cardHeight = cardHeight
+        self.stackHeight = stackHeight ?? cardHeight * 1.16
+        self.sideOffset = sideOffset ?? cardWidth * 0.30
+        self.farSideOffset = farSideOffset ?? cardWidth * 0.52
+        self.dragThreshold = dragThreshold ?? cardWidth * 0.24
     }
     
     var body: some View {
         ZStack {
             ForEach(Array(cards.enumerated()), id: \.element.id) { index, card in
-                CardStackCard(card: card)
-                    .frame(width: Dimension.cardWidth, height: Dimension.cardHeight)
+                CardStackCard(
+                    card: card,
+                    cardWidth: cardWidth,
+                    cardHeight: cardHeight
+                )
+                    .frame(width: cardWidth, height: cardHeight)
                     .scaleEffect(scale(for: index))
                     .offset(x: offset(for: index) + activeDragOffset(for: index))
                     .blur(radius: blurRadius(for: index))
@@ -47,7 +75,7 @@ struct CardStack: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .frame(height: Dimension.stackHeight)
+        .frame(height: stackHeight)
         .contentShape(Rectangle())
         .gesture(dragGesture)
     }
@@ -60,7 +88,7 @@ struct CardStack: View {
             .onEnded { value in
                 let translation = value.translation.width
                 
-                guard abs(translation) > Dimension.dragThreshold else { return }
+                guard abs(translation) > dragThreshold else { return }
                 
                 if translation < 0 {
                     moveToNextCard()
@@ -107,13 +135,13 @@ struct CardStack: View {
         
         switch position {
         case -1:
-            return -Dimension.sideOffset
+            return -sideOffset
         case 1:
-            return Dimension.sideOffset
+            return sideOffset
         case ...(-2):
-            return -Dimension.farSideOffset
+            return -farSideOffset
         case 2...:
-            return Dimension.farSideOffset
+            return farSideOffset
         default:
             return 0
         }
@@ -169,19 +197,41 @@ struct CardStack: View {
 
 private struct CardStackCard: View {
     let card: CardStackItem
+    let cardWidth: CGFloat
+    let cardHeight: CGFloat
+    
+    private var horizontalPadding: CGFloat {
+        cardWidth * 0.12
+    }
+    
+    private var topPadding: CGFloat {
+        cardHeight * 0.10
+    }
+    
+    private var imageHeight: CGFloat {
+        cardHeight * 0.47
+    }
+    
+    private var imageBottomPadding: CGFloat {
+        cardHeight * 0.06
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text(card.title)
-                .font(.system(size: 30, weight: .bold))
+                .font(Text.CustomLargeTitle)
                 .foregroundColor(.black)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
             
             HStack(spacing: 8) {
-                Image(systemName: "speaker.wave.2")
-                    .font(.system(size: 20, weight: .regular))
+                Image(systemName: card.bodyIcon)
+                    .font(Text.CustomHeadline)
                 
                 Text(card.bodyText)
-                    .font(.system(size: 20, weight: .regular))
+                    .font(Text.CustomHeadline)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
             .foregroundColor(.black)
             .padding(.horizontal, 12)
@@ -197,11 +247,11 @@ private struct CardStackCard: View {
                 .scaledToFit()
                 .foregroundColor(.GreyAccentSC)
                 .frame(maxWidth: .infinity)
-                .frame(height: 150)
-                .padding(.bottom, 18)
+                .frame(height: imageHeight)
+                .padding(.bottom, imageBottomPadding)
         }
-        .padding(.top, 32)
-        .padding(.horizontal, 28)
+        .padding(.top, topPadding)
+        .padding(.horizontal, horizontalPadding)
         .background(Color.whiteSC)
         .clipShape(RoundedRectangle(cornerRadius: Radius.MainCard, style: .continuous))
         .shadow(color: .black.opacity(0.18), radius: 14, x: 0, y: 8)
@@ -240,7 +290,11 @@ private extension CardStack {
 
 struct CardStack_Previews: PreviewProvider {
     static var previews: some View {
-        CardStack()
+        CardStack(
+            cards: CardStack.dummyCards,
+            cardWidth: 145,
+            cardHeight: 150
+        )
             .padding(.vertical, 32)
             .previewLayout(.sizeThatFits)
     }

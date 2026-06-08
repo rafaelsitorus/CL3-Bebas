@@ -74,7 +74,7 @@ struct HomeView: View {
                     .frame(width: Dimension.width, height: Dimension.height, alignment: .top)
                     .background(Color.whiteSC)
                     .clipShape(RoundedRectangle(cornerRadius: Radius.MainCard, style: .continuous))
-                    .shadow(color: .black.opacity(0.25), radius: 2, x: 0, y: 2)
+                    .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
                     
                     HStack {
                         Text("History")

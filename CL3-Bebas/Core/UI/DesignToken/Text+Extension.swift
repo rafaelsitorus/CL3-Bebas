@@ -8,8 +8,8 @@
 import SwiftUI
 
 extension Text {
-    static let LargeTitle = Font.system(size: 34, weight: .bold, design: .default)
-    static let Headline   = Font.system(size: 17, weight: .semibold, design: .default)
-    static let Body       = Font.system(size: 15, weight: .regular, design: .default)
-    static let Footnote    = Font.system(size: 13, weight: .light, design: .default)
+    static let CustomLargeTitle = Font.system(size: 34, weight: .bold, design: .default)
+    static let CustomHeadline   = Font.system(size: 17, weight: .semibold, design: .default)
+    static let CustomBody       = Font.system(size: 15, weight: .regular, design: .default)
+    static let CustomFootnote    = Font.system(size: 13, weight: .light, design: .default)
 }

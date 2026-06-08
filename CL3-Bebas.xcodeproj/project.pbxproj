@@ -294,6 +294,8 @@
 				DEVELOPMENT_TEAM = TYH8FTKRMK;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Spitch requires microphone to record your voice and analyse it based on paralinguistic aspects.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Spitch requires speech recognition to transcribe your voice into text and analyze your intonation, volume, pace, and articulation.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -326,6 +328,8 @@
 				DEVELOPMENT_TEAM = TYH8FTKRMK;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Spitch requires microphone to record your voice and analyse it based on paralinguistic aspects.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Spitch requires speech recognition to transcribe your voice into text and analyze your intonation, volume, pace, and articulation.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

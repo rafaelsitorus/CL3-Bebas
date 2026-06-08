@@ -187,7 +187,7 @@ private struct CardStackCard: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .background(Color.whiteSC)
-            .clipShape(RoundedRectangle(cornerRadius: Radius.smallCard, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: Radius.MainCard, style: .continuous))
             .shadow(color: .black.opacity(0.18), radius: 10, x: 0, y: 6)
             
             Spacer(minLength: 0)

@@ -35,7 +35,7 @@ struct SubCardView: View {
         .padding()
         .background(.white)
         .overlay {
-            RoundedRectangle(cornerRadius: Radius.smallCard)
+            RoundedRectangle(cornerRadius: Radius.MainCard)
                 .stroke(
                     Color.gray.opacity(0.4),
                     lineWidth: 0.6
@@ -44,10 +44,10 @@ struct SubCardView: View {
         .overlay(alignment: .leading) {
             Rectangle()
                 .fill(accentColor)
-                .frame(width: 6)
+                .frame(width: 8)
         }
         .clipShape(
-            RoundedRectangle(cornerRadius: Radius.smallCard)
+            RoundedRectangle(cornerRadius: Radius.MainCard)
         )
     }
 }

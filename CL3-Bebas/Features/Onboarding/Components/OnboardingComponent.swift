@@ -97,10 +97,10 @@ struct FeatureRow: View {
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(Text.Headline)
+                    .font(Text.CustomHeadline)
                     .foregroundColor(.primary)
                 Text(description)
-                    .font(Text.Headline)
+                    .font(Text.CustomHeadline)
                     .foregroundColor(Color.GreyAccentSC)
                     .fixedSize(horizontal: false, vertical: true)
             }

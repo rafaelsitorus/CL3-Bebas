@@ -18,7 +18,7 @@ struct PitchResultsView: View {
 
             VStack {
                 Text("See Your Pitch Analysis and Summarize")
-                    .font(Text.LargeTitle)
+                    .font(Text.CustomLargeTitle)
     
             }
             .padding(.horizontal, 10)

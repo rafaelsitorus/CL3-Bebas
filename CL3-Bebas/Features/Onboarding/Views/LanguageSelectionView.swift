@@ -29,7 +29,7 @@ struct LanguageSelectionView: View {
                 .padding(.bottom, 24)
 
             Text("Choose your Language")
-                .font(Text.LargeTitle)
+                .font(Text.CustomLargeTitle)
                 .padding(.bottom, 24)
 
     
@@ -49,7 +49,7 @@ struct LanguageSelectionView: View {
             Spacer().frame(height: 36)
             
             Text("Select the language you'll use so the system can provide the most precise feedback for your pitch delivery")
-                .font(Text.Headline)
+                .font(Text.CustomHeadline)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
 

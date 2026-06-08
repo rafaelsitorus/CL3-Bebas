@@ -21,7 +21,7 @@ struct WelcomeView: View {
                     .scaledToFit()
                     .frame(width: 80, height: 80)
                 Text("Spitch")
-                    .font(Text.LargeTitle)
+                    .font(Text.CustomLargeTitle)
                 Text("Time to experience personal analysis pitch")
                     .font(Text.OnboardingCaption)
                     .foregroundColor(Color.GreyAccentSC)

@@ -1,8 +1,7 @@
 import SwiftUI
 
 enum AppRoute: Hashable {
-    case recordingLanguageSelection
-    case recording
+    case recordingCoordinatorView
     case recordingReviewSummary
     case paceReview
 }
@@ -20,23 +19,12 @@ struct AppRootView: View {
                     recordingViewModel: recordingViewModel,
                     onRecordTap: {
                         // Menambahkan rute ke dalam tumpukan (stack)
-                        onboardingViewModel.path.append(AppRoute.recordingLanguageSelection)
+                        onboardingViewModel.path.append(AppRoute.recordingCoordinatorView)
                     }
                 )
                 // Menangkap perubahan rute dan merender View yang sesuai
                 .navigationDestination(for: AppRoute.self) { route in
                     switch route {
-                    case .recordingLanguageSelection:
-                        RecordingLanguageSelectionView(
-                            viewModel: recordingViewModel
-                        )
-                    case .recording:
-                        RecordingView(
-                            viewModel: recordingViewModel,
-                            onConfirm: {
-                                onboardingViewModel.path.append(AppRoute.recordingReviewSummary)
-                            }
-                        )
                     case .recordingReviewSummary:
                         ReviewSummaryView(
                             result: PitchAnalysisResult(
@@ -51,6 +39,8 @@ struct AppRootView: View {
                         )
                     case .paceReview: // <- Definisikan tampilan untuk rute baru
                         PaceReviewView()
+                    case .recordingCoordinatorView:
+                        RecordPitchCoordinatorView()
                     }
                 }
             } else {

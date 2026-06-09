@@ -7,34 +7,57 @@
 
 import SwiftUI
 
-// MARK: - Root Coordinator
-
 struct RecordPitchCoordinatorView: View {
+
+    let onFinished: () -> Void
+
     @StateObject private var viewModel: RecordPitchViewModel
 
-    init(isPreview: Bool = false) {
-        _viewModel = StateObject(wrappedValue: RecordPitchViewModel(isPreview: isPreview))
+    init(
+        isPreview: Bool = false,
+        onFinished: @escaping () -> Void = {}
+    ) {
+        self.onFinished = onFinished
+
+        _viewModel = StateObject(
+            wrappedValue: RecordPitchViewModel(
+                isPreview: isPreview
+            )
+        )
     }
 
     var body: some View {
         ZStack {
             switch viewModel.currentPage {
+
             case .languageSelection:
-                RecordingLanguageSelectionView(viewModel: viewModel)
-                    .transition(.asymmetric(
+                RecordingLanguageSelectionView(
+                    viewModel: viewModel
+                )
+                .transition(
+                    .asymmetric(
                         insertion: .move(edge: .leading),
-                        removal:   .move(edge: .leading)
-                    ))
+                        removal: .move(edge: .leading)
+                    )
+                )
 
             case .recording:
-                RecordingView(viewModel: viewModel)
-                    .transition(.asymmetric(
+                RecordingView(
+                    viewModel: viewModel,
+                    onConfirm: onFinished
+                )
+                .transition(
+                    .asymmetric(
                         insertion: .move(edge: .trailing),
-                        removal:   .move(edge: .trailing)
-                    ))
+                        removal: .move(edge: .trailing)
+                    )
+                )
             }
         }
-        .animation(.easeInOut(duration: 0.28), value: viewModel.currentPage)
+        .animation(
+            .easeInOut(duration: 0.28),
+            value: viewModel.currentPage
+        )
     }
 }
 

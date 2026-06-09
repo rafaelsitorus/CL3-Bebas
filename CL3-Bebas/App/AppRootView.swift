@@ -20,6 +20,9 @@ struct AppRootView: View {
                     onRecordTap: {
                         // Menambahkan rute ke dalam tumpukan (stack)
                         onboardingViewModel.path.append(AppRoute.recordingCoordinatorView)
+                    },
+                    onPaceTap: {
+                        onboardingViewModel.path.append(AppRoute.paceReview)
                     }
                 )
                 // Menangkap perubahan rute dan merender View yang sesuai

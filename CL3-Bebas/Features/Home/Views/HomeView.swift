@@ -97,7 +97,11 @@ struct HomeView: View {
                         Spacer()
                         
                         NavigationLink {
-                            HistoryView()
+                            HistoryView(
+                                onPaceTap: {
+                                    onPaceTap()
+                                }
+                            )
                         } label: {
                             Text("See All >>")
                                 .font(Text.CustomBody)

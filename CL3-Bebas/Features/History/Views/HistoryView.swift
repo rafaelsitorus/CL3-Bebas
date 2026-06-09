@@ -28,7 +28,6 @@ struct HistoryView: View {
                         date: recording.date,
                         duration: recording.duration,
                         issues: recording.issues,
-                        onBackToHome: { dismiss() },
                         onPaceTap: {
                             onPaceTap()
                         }

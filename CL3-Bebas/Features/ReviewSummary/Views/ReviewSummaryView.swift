@@ -13,12 +13,23 @@ struct ReviewSummaryView: View {
 
     @StateObject private var viewModel: ReviewSummaryViewModel
     let onContinue: () -> Void
+    let onBack: (() -> Void)?
+    let onPaceTap: () -> Void
+    
+    @Environment(\.dismiss) private var dismiss
 
     // MARK: - Init
 
-    init(result: PitchAnalysisResult, onContinue: @escaping () -> Void) {
+    init(
+        result: PitchAnalysisResult,
+        onContinue: @escaping () -> Void,
+        onBack: (() -> Void)? = nil,
+        onPaceTap: @escaping () -> Void
+    ) {
         _viewModel = StateObject(wrappedValue: ReviewSummaryViewModel(result: result))
         self.onContinue = onContinue
+        self.onBack = onBack
+        self.onPaceTap = onPaceTap
     }
 
     // MARK: - Body
@@ -44,7 +55,9 @@ struct ReviewSummaryView: View {
                     labelText: viewModel.result.intonation.rawValue,
                     labelColor: viewModel.result.intonation.labelColor,
                     progress: viewModel.intonationProgress,
-                    onTap: {}
+                    onTap: {
+                        
+                    }
                 )
 
                 MetricCard(
@@ -55,7 +68,9 @@ struct ReviewSummaryView: View {
                     labelText: viewModel.result.pace.rawValue,
                     labelColor: viewModel.result.pace.labelColor,
                     progress: viewModel.paceProgress,
-                    onTap: {}
+                    onTap: {
+                        onPaceTap()
+                    }
                 )
 
                 MetricCard(
@@ -75,7 +90,23 @@ struct ReviewSummaryView: View {
         }
         .navigationTitle("Pitch Review")
         .navigationBarTitleDisplayMode(.large)
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button(action: handleBack) {
+                    Image(systemName: "chevron.left")
+                }
+            }
+        }
         .background(Color(.systemGroupedBackground))
+    }
+    
+    private func handleBack() {
+        if let onBack {
+            onBack()
+        } else {
+            dismiss()
+        }
     }
 }
 
@@ -89,7 +120,9 @@ struct ReviewSummaryView: View {
                 articulation: .unclear,
                 intonation: .expressive
             ),
-            onContinue: {}
+            onContinue: {
+            },
+            onPaceTap: {}
         )
     }
 }

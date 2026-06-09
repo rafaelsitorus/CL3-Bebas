@@ -14,6 +14,20 @@ struct HomeView: View {
         static let cardStackTopPadding: CGFloat = 56
     }
     
+    @ObservedObject var recordingViewModel: RecordPitchViewModel
+    let onRecordTap: () -> Void
+    let onPaceTap: () -> Void
+    
+    init(
+        recordingViewModel: RecordPitchViewModel,
+        onRecordTap: @escaping () -> Void = {},
+        onPaceTap: @escaping () -> Void = {}
+    ) {
+        self.recordingViewModel = recordingViewModel
+        self.onRecordTap = onRecordTap
+        self.onPaceTap = onPaceTap
+    }
+    
     struct HistoryItem: Identifiable {
         let id = UUID()
         let title: String
@@ -45,8 +59,8 @@ struct HomeView: View {
             ScrollView {
                 VStack {
                     Text("Overall Analysis")
-                        .font(Text.TitleHome)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .font(Text.TitleHome)
                         .padding(.horizontal, 22)
                         .padding(.bottom, 6)
                     
@@ -82,10 +96,12 @@ struct HomeView: View {
                         
                         Spacer()
                         
-                        Button(action: {}) {
+                        NavigationLink {
+                            HistoryView()
+                        } label: {
                             Text("See All >>")
                                 .font(Text.CustomBody)
-                                .foregroundColor(Color.BluePrimaryBC)
+                                .foregroundColor(Color.GreyAccentSC)
                         }
                         .buttonStyle(.plain)
                     }
@@ -94,11 +110,14 @@ struct HomeView: View {
                     .padding(.top, 12)
                     
                     ForEach(history) { item in
-                        HistoryCard(
+                        HistoryCardLink(
                             title: item.title,
                             date: item.date,
                             duration: item.duration,
-                            issues: item.issues
+                            issues: item.issues,
+                            onPaceTap: {
+                                onPaceTap()
+                            }
                         )
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -116,7 +135,7 @@ struct HomeView: View {
                 shadowRadius: 6,
                 shadowX: 0,
                 shadowY: 2,
-                action: {}
+                action: onRecordTap
             )
                 .frame(maxWidth: .infinity, alignment: .trailing)
                 .padding(.trailing, 20)
@@ -125,5 +144,5 @@ struct HomeView: View {
 }
 
 #Preview {
-    HomeView()
+    HomeView(recordingViewModel: RecordPitchViewModel(isPreview: true))
 }

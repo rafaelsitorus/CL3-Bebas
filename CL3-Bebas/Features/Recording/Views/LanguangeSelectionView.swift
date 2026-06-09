@@ -10,25 +10,18 @@ import SwiftUI
 // MARK: - Language Selection View
 struct RecordingLanguageSelectionView: View {
     @ObservedObject var viewModel: RecordPitchViewModel
+    let onConfirm: (() -> Void)?
+    
+    init(
+        viewModel: RecordPitchViewModel,
+        onConfirm: (() -> Void)? = nil
+    ) {
+        self.viewModel = viewModel
+        self.onConfirm = onConfirm
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-
-            // ── Navigation Bar ──────────────────────────────────────────
-            HStack {
-                RecordingBackButton { viewModel.goBack() }
-                Spacer()
-                CheckButton(action: { viewModel.confirmLanguageSelection() })
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 12)
-
-            // ── Title ───────────────────────────────────────────────────
-            Text("Record Pitch")
-                .font(.system(size: 34, weight: .bold))
-                .padding(.horizontal, 24)
-                .padding(.top, 24)
-
             // ── Language Picker ─────────────────────────────────────────
             LanguagePickerCard(selectedLanguage: $viewModel.selectedLanguage)
                 .padding(.horizontal, 24)
@@ -45,6 +38,18 @@ struct RecordingLanguageSelectionView: View {
             Spacer()
         }
         .background(Color(.systemBackground))
+        .navigationTitle("Record Pitch")
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    viewModel.confirmLanguageSelection()
+                    onConfirm?()
+                } label: {
+                    Image(systemName: "checkmark")
+                }
+            }
+        }
     }
 }
 

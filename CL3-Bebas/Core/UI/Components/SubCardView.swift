@@ -60,4 +60,5 @@ struct SubCardView: View {
         icon: "chart.line.uptrend.xyaxis",
         accentColor: .red
     )
+    .padding(.horizontal, 16)
 }

@@ -3,25 +3,18 @@ import SwiftUI
 // MARK: - Recording View
 struct RecordingView: View {
     @ObservedObject var viewModel: RecordPitchViewModel
+    let onConfirm: (() -> Void)?
+    
+    init(
+        viewModel: RecordPitchViewModel,
+        onConfirm: (() -> Void)? = nil
+    ) {
+        self.viewModel = viewModel
+        self.onConfirm = onConfirm
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-
-            // ── Navigation Bar ──────────────────────────────────────────
-            HStack {
-                RecordingBackButton { viewModel.goBack() }
-                Spacer()
-                CheckButton(action: { viewModel.confirmRecording() })
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 12)
-
-            // ── Title ───────────────────────────────────────────────────
-            Text("Record Pitch")
-                .font(Text.CustomLargeTitle)
-                .padding(.horizontal, 24)
-                .padding(.top, 24)
-
             // ── Timer ───────────────────────────────────────────────────
             Text(viewModel.formattedTime)
                 .font(Text.CustomLargeTitle)
@@ -50,6 +43,18 @@ struct RecordingView: View {
             .padding(.bottom, 52)
         }
         .background(Color(.systemBackground))
+        .navigationTitle("Record Pitch")
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    viewModel.confirmRecording()
+                    onConfirm?()
+                } label: {
+                    Image(systemName: "checkmark")
+                }
+            }
+        }
         .alert("Microphone Access Denied",
                isPresented: $viewModel.permissionDenied) {
             Button("Open Settings") {

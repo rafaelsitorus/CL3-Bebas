@@ -73,6 +73,59 @@ struct HistoryCard: View {
     }
 }
 
+struct HistoryCardLink: View {
+    let title: String
+    let date: Date
+    let duration: TimeInterval
+    let issues: [SpeechIssue]
+    let result: PitchAnalysisResult
+    let onBackToHome: (() -> Void)?
+    let onPaceTap: () -> Void
+    
+    init(
+        title: String,
+        date: Date,
+        duration: TimeInterval,
+        issues: [SpeechIssue],
+        result: PitchAnalysisResult = PitchAnalysisResult(
+            pace: .tooFast,
+            articulation: .unclear,
+            intonation: .expressive
+        ),
+        onBackToHome: (() -> Void)? = nil,
+        onPaceTap: @escaping () -> Void
+    ) {
+        self.title = title
+        self.date = date
+        self.duration = duration
+        self.issues = issues
+        self.result = result
+        self.onBackToHome = onBackToHome
+        self.onPaceTap = onPaceTap
+    }
+    
+    var body: some View {
+        NavigationLink {
+            ReviewSummaryView(
+                result: result,
+                onContinue: {},
+                onBack: onBackToHome,
+                onPaceTap: {
+                    onPaceTap()
+                }
+            )
+        } label: {
+            HistoryCard(
+                title: title,
+                date: date,
+                duration: duration,
+                issues: issues
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 struct SpeechIssueBadge: View {
     let issue: SpeechIssue
     var body: some View {

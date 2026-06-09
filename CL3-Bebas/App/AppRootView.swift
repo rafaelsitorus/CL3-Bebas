@@ -43,7 +43,9 @@ struct AppRootView: View {
                     case .paceReview: // <- Definisikan tampilan untuk rute baru
                         PaceReviewView()
                     case .recordingCoordinatorView:
-                        RecordPitchCoordinatorView()
+                        RecordPitchCoordinatorView {
+                            onboardingViewModel.path.append(AppRoute.recordingReviewSummary)
+                        }
                     }
                 }
             } else {

@@ -1,3 +1,10 @@
+//
+//  RecordingCoordinatorView.swift
+//  CL3-Bebas
+//
+//  Created by Danendra Darmawansyah on 09/06/26.
+//
+
 import SwiftUI
 
 // MARK: - Recording View

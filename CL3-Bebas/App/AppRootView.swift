@@ -16,14 +16,6 @@ struct AppRootView: View {
             if onboardingComplete {
                 // Tampilan root saat ini
                 HomeView(
-                    recordingViewModel: recordingViewModel,
-                    onRecordTap: {
-                        // Menambahkan rute ke dalam tumpukan (stack)
-                        onboardingViewModel.path.append(AppRoute.recordingCoordinatorView)
-                    },
-                    onPaceTap: {
-                        onboardingViewModel.path.append(AppRoute.paceReview)
-                    }
                 )
                 // Menangkap perubahan rute dan merender View yang sesuai
                 .navigationDestination(for: AppRoute.self) { route in

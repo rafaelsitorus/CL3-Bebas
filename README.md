@@ -1,6 +1,6 @@
 # CL3-Bebas
 
-Clean SwiftUI starter structured for `MVVM`.
+SwiftUI boilerplate structured for `MVVM`.
 
 ## Structure
 

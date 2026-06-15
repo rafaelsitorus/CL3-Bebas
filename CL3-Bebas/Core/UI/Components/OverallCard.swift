@@ -41,8 +41,11 @@ struct OverallCard: View {
         .padding(20) // Padding bagian dalam kartu (sesuai Figma padding 10-20)
         .frame(width: 259, alignment: .leading) // Kartu mengambil lebar maksimal layar
         .background(Color(.systemBackground)) // Mengikuti Light/Dark mode secara native
-        .clipShape(RoundedRectangle(cornerRadius: Radius.OverallCard)) // Menggunakan Token Radius 25 Anda
-        .shadow(color: Color.black.opacity(0.2), radius: 4, x: 0, y: 2) // Soft shadow minimalis
+        .clipShape(RoundedRectangle(cornerRadius: Radius.OverallCard))
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.OverallCard)
+                .stroke(Color.black.opacity(0.4), lineWidth: 0.3)
+        )
     }
 }
 

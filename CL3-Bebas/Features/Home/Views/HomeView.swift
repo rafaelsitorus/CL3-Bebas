@@ -109,6 +109,7 @@ struct HomeView: View {
                 }
             }
         }
+        .background(Color.lightGrayBC)
     }
 }
 

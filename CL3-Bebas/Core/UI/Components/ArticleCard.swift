@@ -44,7 +44,10 @@ struct ArticleCard: View {
         .frame(width: 360, alignment: .leading)
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: Radius.OverallCard))
-        .shadow(color: Color.black.opacity(0.2), radius: 4, x: 0, y: 2)
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.OverallCard)
+                .stroke(Color.black.opacity(0.4), lineWidth: 0.3)
+        )
     }
 }
 

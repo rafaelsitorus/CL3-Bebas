@@ -16,7 +16,6 @@ extension Text {
     static let CustomLargeTitle = Font.system(size: 34, weight: .semibold, design: .default)
     static let CustomHeadline   = Font.system(size: 17, weight: .semibold, design: .default)
     static let CustomBody       = Font.system(.body).weight(.regular)
-    static let CustomFootnote    = Font.system(size: 13, weight: .light, design: .default)
     
     // Expanded Label
     static let CustomExpandedSH = Font.system(.footnote).weight(.semibold).width(.expanded)
@@ -32,6 +31,9 @@ extension Text {
     
     // SubHead
     static let CustomCondensedSH = Font.system(.subheadline).weight(.semibold).width(.condensed)
+    
+    // Footnote
+    static let CustomFootnote    = Font.system(.footnote).weight(.regular)
 }
 
 struct CustomExpandedBT: ViewModifier {

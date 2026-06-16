@@ -17,7 +17,7 @@ struct HistoryView: View {
     @State private var isSelectMode = false
     @Environment(\.dismiss) private var dismiss
 
-    let onRecordingTap: (PitchAnalysisResult) -> Void
+    let onRecordingTap: (AnalysisResult) -> Void
 
     enum FilterOption: String, CaseIterable {
         case all          = "All"
@@ -64,15 +64,27 @@ struct HistoryView: View {
 
     /// Default analysis result used as a placeholder until each
     /// recording carries its own real metrics.
-    private var defaultResult: PitchAnalysisResult {
-        PitchAnalysisResult(
-            pace: .tooFast,
-            articulation: .unclear,
-            intonation: .expressive
+    private var defaultResult: AnalysisResult {
+        AnalysisResult(
+            transcription: "",
+            duration: 0,
+            wordsPerMinute: 0,
+            paceLabel: "Too Fast",
+            averageAmplitudeDB: -20,
+            volumeLabel: "Good",
+            pitchSamples: [],
+            pitchVariance: 0,
+            intonationLabel: "Varied",
+            amplitudeSamples: [],
+            articulationScore: 0.43,
+            pronunciationIssues: [],
+            audioFileURL: nil,
+            intonationHighlight: nil,
+            paceHighlight: nil
         )
     }
 
-    init(onRecordingTap: @escaping (PitchAnalysisResult) -> Void = { _ in }) {
+    init(onRecordingTap: @escaping (AnalysisResult) -> Void = { _ in }) {
         self.onRecordingTap = onRecordingTap
     }
 

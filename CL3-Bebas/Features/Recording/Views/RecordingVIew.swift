@@ -1,5 +1,5 @@
 //
-//  RecordingCoordinatorView.swift
+//  RecordingView.swift
 //  CL3-Bebas
 //
 //  Created by Danendra Darmawansyah on 09/06/26.
@@ -38,10 +38,6 @@ struct RecordingView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
 
-            // ── Mic Level Bar ───────────────────────────────────────────
-            MicLevelView(level: viewModel.micLevel)
-                .padding(.horizontal, 50)
-                .padding(.top, 28)
 
             Spacer()
 
@@ -118,38 +114,6 @@ struct WaveformView: View {
     }
 }
 
-// MARK: - Mic Level View
-private struct MicLevelView: View {
-    let level: Float
-
-    private let totalSegments  = 28
-    private let activeColor    = Color(red: 0.0, green: 0.48, blue: 1.0)
-    private let inactiveColor  = Color(.systemGray4)
-
-    var body: some View {
-        HStack(spacing: 15) {
-            Image(systemName: "mic.fill")
-                .font(.system(size: 15))
-                .foregroundColor(.primary)
-
-            // Fixed-size segments that stretch to fill available width
-            HStack(spacing: 3) {
-                ForEach(0..<totalSegments, id: \.self) { index in
-                    let threshold = Float(index) / Float(totalSegments)
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(level > threshold ? activeColor : inactiveColor)
-                        .frame(height: 22)
-                        .animation(.easeOut(duration: 0.07), value: level)
-                }
-            }
-
-            Text("\(Int(level * 100))%")
-                .font(Text.CustomHeadline)
-                .foregroundColor(.secondary)
-                .monospacedDigit()
-        }
-    }
-}
 
 // MARK: - Pause / Resume Button
 private struct PauseResumeButton: View {

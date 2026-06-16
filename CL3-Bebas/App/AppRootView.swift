@@ -6,11 +6,13 @@ import SwiftUI
 // `AppRoute` values for the main app. The onboarding flow uses
 // `OnboardingStep` values on the same stack — SwiftUI dispatches
 // to the matching `navigationDestination(for:)` modifier per type.
+
 enum AppRoute: Hashable {
-    case reviewSummary(PitchAnalysisResult)
-    case paceReview
-    case articulationReview
-    case intonationReview
+    case reviewSummary(AnalysisResult)   
+    case paceReview(AnalysisResult)
+    case articulationReview(AnalysisResult)
+    case intonationReview(AnalysisResult)
+    case unclearWords([PronunciationIssue], URL?)
     case article(Article)
 }
 
@@ -124,19 +126,25 @@ struct AppRootView: View {
                     },
                     onFinished: {
                         presentedRecording = false
-                        // Push ReviewSummary onto the main stack so
-                        // the user can drill into pace / articulation
-                        // / intonation reviews with native back
-                        // navigation. The back button on
-                        // ReviewSummary returns to the peer root
-                        // (Home or History).
                         onboardingViewModel.path.append(
                             AppRoute.reviewSummary(
-                                PitchAnalysisResult(
-                                    pace: .tooFast,
-                                    articulation: .unclear,
-                                    intonation: .expressive
-                                )
+                                AnalysisResult(          // ← was PitchAnalysisResult
+                                                transcription: "",
+                                                duration: 0,
+                                                wordsPerMinute: 0,
+                                                paceLabel: "Good",
+                                                averageAmplitudeDB: -20,
+                                                volumeLabel: "Good",
+                                                pitchSamples: [],
+                                                pitchVariance: 0,
+                                                intonationLabel: "Varied",
+                                                amplitudeSamples: [],
+                                                articulationScore: 0.75,
+                                                pronunciationIssues: [],
+                                                audioFileURL: nil,
+                                                intonationHighlight: nil,
+                                                paceHighlight: nil
+                                            )
                             )
                         )
                     },
@@ -153,28 +161,20 @@ struct AppRootView: View {
     @ViewBuilder
     private func destination(for route: AppRoute) -> some View {
         switch route {
-        case .reviewSummary(let result):
-            ReviewSummaryView(
-                result: result,
-                onPaceTap: {
-                    onboardingViewModel.path.append(AppRoute.paceReview)
-                },
-                onArticulationTap: {
-                    onboardingViewModel.path.append(AppRoute.articulationReview)
-                },
-                onIntonationTap: {
-                    onboardingViewModel.path.append(AppRoute.intonationReview)
-                }
-            )
-
-        case .paceReview:
-            PaceReviewView()
-
-        case .articulationReview:
-            ArticulationReviewView()
-
-        case .intonationReview:
-            IntonationReviewView()
+        case .reviewSummary(let pitchResult):
+                    ReviewSummaryView(result: pitchResult)
+         
+                case .paceReview(let analysisResult):
+                    PaceReviewView(result: analysisResult)
+         
+                case .articulationReview(let analysisResult):
+                    ArticulationReviewView(result: analysisResult)
+         
+                case .intonationReview(let analysisResult):
+                    IntonationReviewView(result: analysisResult)
+         
+                case .unclearWords(let issues, let url):
+                    UnclearWordsView(issues: issues, audioFileURL: url)
 
         case .article(let article):
             ArticleView(

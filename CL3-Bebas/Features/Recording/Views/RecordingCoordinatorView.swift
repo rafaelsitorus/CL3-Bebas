@@ -9,17 +9,19 @@ import SwiftUI
 
 struct RecordPitchCoordinatorView: View {
 
-    // Change signature: onFinished now delivers the captured audio + language
-    let onFinished: (AudioSampleData, String) -> Void
+    // Change signature: onFinished now delivers the analysis result
+    let onFinished: (AnalysisResult) -> Void
     let onLanguageConfirmed: () -> Void
     let onCancelled: () -> Void
 
     @StateObject private var viewModel: RecordPitchViewModel
+    @State private var analyzer = SpeechAnalyzer()
+    @State private var analysisError: String?
 
     init(
         isPreview: Bool = false,
         onLanguageConfirmed: @escaping () -> Void = {},
-        onFinished: @escaping (AudioSampleData, String) -> Void = { _, _ in },
+        onFinished: @escaping (AnalysisResult) -> Void = { _ in },
         onCancelled: @escaping () -> Void = {}
     ) {
         self.onLanguageConfirmed = onLanguageConfirmed
@@ -43,19 +45,46 @@ struct RecordPitchCoordinatorView: View {
                 RecordingView(
                     viewModel: viewModel,
                     onConfirm: {
-                        // Pull the captured audio out of the viewModel
-                        // and pass it up with the selected language code
-                        if let sample = viewModel.lastSample {
-                            let langCode = viewModel.selectedLanguage == .english ? "en" : "id"
-                            onFinished(sample, langCode)
-                        }
+                        // Move to analyzing page — analysis starts in .onAppear
+                        viewModel.currentPage = .analyzing
                     },
                     onCancel: { viewModel.goBack() }
                 )
                 .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .trailing)))
+
+            case .analyzing:
+                AnalyzingRecordingView()
+                    .transition(.opacity)
+                    .onAppear { startAnalysis() }
             }
         }
         .animation(.easeInOut(duration: 0.28), value: viewModel.currentPage)
+        .alert("Analysis Failed", isPresented: .init(
+            get: { analysisError != nil },
+            set: { if !$0 { analysisError = nil } }
+        )) {
+            Button("Retry") { startAnalysis() }
+            Button("Cancel", role: .cancel) { onCancelled() }
+        } message: {
+            Text(analysisError ?? "An unknown error occurred.")
+        }
+    }
+
+    // MARK: - Analysis
+
+    private func startAnalysis() {
+        guard let sample = viewModel.lastSample else { return }
+        let langCode = viewModel.selectedLanguage == .english ? "en" : "id"
+        analyzer.languageCode = langCode
+
+        Task {
+            do {
+                let result = try await analyzer.analyze(audioData: sample)
+                onFinished(result)
+            } catch {
+                analysisError = error.localizedDescription
+            }
+        }
     }
 }
 

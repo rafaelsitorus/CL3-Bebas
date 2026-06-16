@@ -78,14 +78,6 @@ struct RecordingView: View {
             }
         }
         .background(Color(.systemBackground))
-<<<<<<< HEAD
-        .navigationTitle("Record Pitch")
-        .navigationBarTitleDisplayMode(.large)
-        .navigationBarBackButtonHidden(true)
-        // No toolbar items declared here — the recording
-        // coordinator owns the single toolbar so we don't end up
-        // with duplicate back / confirm buttons.
-=======
         .navigationBarBackButtonHidden(true)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
@@ -100,7 +92,6 @@ struct RecordingView: View {
             }
         }
         // ── Alerts ─────────────────────────────────────────────────────
->>>>>>> main
         .alert("Microphone Access Denied",
                isPresented: $viewModel.permissionDenied) {
             Button("Open Settings") {
@@ -174,50 +165,9 @@ struct WaveformView: View {
     }
 }
 
-<<<<<<< HEAD
-// MARK: - Mic Level View
-private struct MicLevelView: View {
-    let level: Float
-
-    private let totalSegments  = 28
-    private let activeColor    = Color(red: 0.0, green: 0.48, blue: 1.0)
-    private let inactiveColor  = Color(.systemGray4)
-
-    var body: some View {
-        HStack(spacing: 15) {
-            Image(systemName: "mic.fill")
-                .font(.system(size: 15))
-                .foregroundColor(.primary)
-
-            // Fixed-size segments that stretch to fill available width
-            HStack(spacing: 3) {
-                ForEach(0..<totalSegments, id: \.self) { index in
-                    let threshold = Float(index) / Float(totalSegments)
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(level > threshold ? activeColor : inactiveColor)
-                        .frame(height: 22)
-                        .animation(.easeOut(duration: 0.07), value: level)
-                }
-            }
-
-            Text("\(Int(level * 100))%")
-                .font(Text.CustomHeadline)
-                .foregroundColor(.secondary)
-                .monospacedDigit()
-        }
-    }
-}
-
-// MARK: - Pause / Resume Button
-private struct PauseResumeButton: View {
-    let isPaused: Bool
-    let action:   () -> Void
-
-=======
 // MARK: - Start Record Button (mic icon — initial state)
 private struct StartRecordButton: View {
     let action: () -> Void
->>>>>>> main
     @State private var isPressed = false
 
     var body: some View {

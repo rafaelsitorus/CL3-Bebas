@@ -284,13 +284,6 @@ struct AppRootView: View {
         return issues
     }
 
-    // MARK: - Bottom Bar Buttons
-    
-    private var shouldShowBottomBar: Bool {
-        onboardingComplete &&
-        onboardingViewModel.path.isEmpty
-    }
-
     private var bottomBarLeading: some View {
         HStack(spacing: 6) {
             bottomBarButton(

@@ -52,7 +52,6 @@ struct ReviewSummaryView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    navBar
                     sectionLabel("PITCH REVIEW")
                         .padding(.top, 8)
                     titleAndScore
@@ -65,34 +64,19 @@ struct ReviewSummaryView: View {
                 }
             }
         }
-        .navigationBarHidden(true)
+        // Native SwiftUI back chevron is provided by the enclosing
+        // NavigationStack — we just style it here.
+        .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Color(white: 0.96), for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .navigationTitle("Pitch Review")
         .tint(.black)
+        // Hide the bottom bar (Home / History / Mic) on the review
+        // screens so only the native back chevron is available.
+        .toolbar(.hidden, for: .bottomBar)
         .onDisappear {
             player.stop()
         }
-    }
-
-    // MARK: Sub-views
-
-    private var navBar: some View {
-        HStack {
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.black)
-                    .frame(width: 36, height: 36)
-                    .background(Color.white)
-                    .clipShape(Circle())
-                    .overlay(Circle().stroke(Color.black.opacity(0.08)))
-            }
-            Spacer()
-        }
-        .padding(.horizontal, 20)
-        .padding(.top, 16)
-        .padding(.bottom, 8)
     }
 
     private var titleAndScore: some View {

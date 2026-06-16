@@ -43,28 +43,10 @@ struct RecordingLanguageSelectionView: View {
         .background(Color(.systemBackground))
         .navigationTitle("Record Pitch")
         .navigationBarTitleDisplayMode(.large)
-        .toolbar {
-            // Cancel / checklist — dismisses the one-time-form cover.
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    onCancel?()
-                } label: {
-                    Image(systemName: "checklist")
-                }
-                .accessibilityLabel("Checklist")
-            }
-
-            // Confirm — moves to the recording page.
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    viewModel.confirmLanguageSelection()
-                    onConfirm?()
-                } label: {
-                    Image(systemName: "checkmark")
-                }
-                .accessibilityLabel("Continue")
-            }
-        }
+        .navigationBarBackButtonHidden(true)
+        // No toolbar items declared here — the recording
+        // coordinator owns the single toolbar so we don't end up
+        // with duplicate back / confirm buttons.
     }
 }
 

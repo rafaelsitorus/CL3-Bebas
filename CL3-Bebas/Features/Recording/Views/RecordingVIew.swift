@@ -38,7 +38,6 @@ struct RecordingView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
 
-
             Spacer()
 
             // ── Pause / Resume Button ───────────────────────────────────
@@ -51,28 +50,10 @@ struct RecordingView: View {
         .background(Color(.systemBackground))
         .navigationTitle("Record Pitch")
         .navigationBarTitleDisplayMode(.large)
-        .toolbar {
-            // Cancel / back — dismisses the cover (one-time form).
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    onCancel?()
-                } label: {
-                    Image(systemName: "checklist")
-                }
-                .accessibilityLabel("Checklist")
-            }
-
-            // Confirm — finishes the recording and pushes ReviewSummary.
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    viewModel.confirmRecording()
-                    onConfirm?()
-                } label: {
-                    Image(systemName: "checkmark")
-                }
-                .accessibilityLabel("Confirm")
-            }
-        }
+        .navigationBarBackButtonHidden(true)
+        // No toolbar items declared here — the recording
+        // coordinator owns the single toolbar so we don't end up
+        // with duplicate back / confirm buttons.
         .alert("Microphone Access Denied",
                isPresented: $viewModel.permissionDenied) {
             Button("Open Settings") {
@@ -114,6 +95,38 @@ struct WaveformView: View {
     }
 }
 
+// MARK: - Mic Level View
+private struct MicLevelView: View {
+    let level: Float
+
+    private let totalSegments  = 28
+    private let activeColor    = Color(red: 0.0, green: 0.48, blue: 1.0)
+    private let inactiveColor  = Color(.systemGray4)
+
+    var body: some View {
+        HStack(spacing: 15) {
+            Image(systemName: "mic.fill")
+                .font(.system(size: 15))
+                .foregroundColor(.primary)
+
+            // Fixed-size segments that stretch to fill available width
+            HStack(spacing: 3) {
+                ForEach(0..<totalSegments, id: \.self) { index in
+                    let threshold = Float(index) / Float(totalSegments)
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(level > threshold ? activeColor : inactiveColor)
+                        .frame(height: 22)
+                        .animation(.easeOut(duration: 0.07), value: level)
+                }
+            }
+
+            Text("\(Int(level * 100))%")
+                .font(Text.CustomHeadline)
+                .foregroundColor(.secondary)
+                .monospacedDigit()
+        }
+    }
+}
 
 // MARK: - Pause / Resume Button
 private struct PauseResumeButton: View {

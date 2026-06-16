@@ -29,33 +29,90 @@ struct RecordPitchCoordinatorView: View {
     }
 
     var body: some View {
-        ZStack {
-            switch viewModel.currentPage {
-            case .languageSelection:
+        // The coordinator owns its own NavigationStack so the inner
+        // views can declare navigation titles. The single toolbar
+        // block below renders EXACTLY ONE back button and EXACTLY
+        // ONE confirm button, no matter which inner page is
+        // currently active. (Previously each inner view declared
+        // its own toolbar and a ZStack mounted both, which produced
+        // duplicate buttons.)
+        NavigationStack {
+            ZStack {
                 RecordingLanguageSelectionView(
                     viewModel: viewModel,
                     onConfirm: { onLanguageConfirmed() },
                     onCancel: { onCancelled() }
                 )
-                .transition(.asymmetric(insertion: .move(edge: .leading), removal: .move(edge: .leading)))
+                .opacity(viewModel.currentPage == .languageSelection ? 1 : 0)
+                .allowsHitTesting(viewModel.currentPage == .languageSelection)
 
-            case .recording:
                 RecordingView(
                     viewModel: viewModel,
                     onConfirm: {
-                        // Pull the captured audio out of the viewModel
-                        // and pass it up with the selected language code
+                        // We do not block on the captured audio here —
+                        // the host just needs the language code to
+                        // build a dummy result while the real
+                        // analyzer is being wired up.
+                        let langCode = viewModel.selectedLanguage == .english ? "en" : "id"
                         if let sample = viewModel.lastSample {
-                            let langCode = viewModel.selectedLanguage == .english ? "en" : "id"
                             onFinished(sample, langCode)
+                        } else {
+                            // lastSample may be nil if the user
+                            // tapped confirm before the recorder
+                            // produced any samples. Pass an empty
+                            // sample — the host can still build a
+                            // dummy result.
+                            onFinished(
+                                AudioSampleData(
+                                    recordingDuration: TimeInterval(viewModel.elapsedSeconds)
+                                ),
+                                langCode
+                            )
                         }
                     },
                     onCancel: onCancelled
                 )
-                .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .trailing)))
+                .opacity(viewModel.currentPage == .recording ? 1 : 0)
+                .allowsHitTesting(viewModel.currentPage == .recording)
+            }
+            // A short, snappy transition between pages.
+            .animation(.easeOut(duration: 0.18), value: viewModel.currentPage)
+        }
+        // The coordinator is the single owner of the toolbar. Each
+        // inner view is NOT allowed to declare its own toolbar items,
+        // so we render exactly one back button and one confirm
+        // button regardless of which page is active.
+        .toolbar {
+            // Back / cancel — single button on the left.
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    onCancelled()
+                } label: {
+                    Image(systemName: "chevron.left")
+                }
+                .accessibilityLabel("Back")
+            }
+            // Confirm / continue — single button on the right.
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    if viewModel.currentPage == .languageSelection {
+                        viewModel.confirmLanguageSelection()
+                        onLanguageConfirmed()
+                    } else {
+                        viewModel.confirmRecording()
+                        onFinished(
+                            viewModel.lastSample ?? AudioSampleData(
+                                recordingDuration: TimeInterval(viewModel.elapsedSeconds)
+                            ),
+                            viewModel.selectedLanguage == .english ? "en" : "id"
+                        )
+                    }
+                } label: {
+                    Image(systemName: "checkmark")
+                }
+                .accessibilityLabel("Confirm")
             }
         }
-        .animation(.easeInOut(duration: 0.28), value: viewModel.currentPage)
     }
 }
 
@@ -72,5 +129,7 @@ struct RecordPitchCoordinatorView: View {
         let t = Float(i) / 60
         return max(0.12, abs(sin(t * .pi * 6)) * 0.88 + Float.random(in: -0.08...0.08))
     }
-    return RecordingView(viewModel: vm)
+    return NavigationStack {
+        RecordingView(viewModel: vm)
+    }
 }

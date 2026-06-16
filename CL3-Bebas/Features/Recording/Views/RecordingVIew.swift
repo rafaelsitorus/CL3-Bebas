@@ -11,13 +11,16 @@ import SwiftUI
 struct RecordingView: View {
     @ObservedObject var viewModel: RecordPitchViewModel
     let onConfirm: (() -> Void)?
-    
+    let onCancel: (() -> Void)?
+
     init(
         viewModel: RecordPitchViewModel,
-        onConfirm: (() -> Void)? = nil
+        onConfirm: (() -> Void)? = nil,
+        onCancel: (() -> Void)? = nil
     ) {
         self.viewModel = viewModel
         self.onConfirm = onConfirm
+        self.onCancel = onCancel
     }
 
     var body: some View {
@@ -53,6 +56,17 @@ struct RecordingView: View {
         .navigationTitle("Record Pitch")
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
+            // Cancel / back — dismisses the cover (one-time form).
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    onCancel?()
+                } label: {
+                    Image(systemName: "checklist")
+                }
+                .accessibilityLabel("Checklist")
+            }
+
+            // Confirm — finishes the recording and pushes ReviewSummary.
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     viewModel.confirmRecording()
@@ -60,6 +74,7 @@ struct RecordingView: View {
                 } label: {
                     Image(systemName: "checkmark")
                 }
+                .accessibilityLabel("Confirm")
             }
         }
         .alert("Microphone Access Denied",
@@ -132,7 +147,6 @@ private struct MicLevelView: View {
                 .font(Text.CustomHeadline)
                 .foregroundColor(.secondary)
                 .monospacedDigit()
-//                .frame(minWidth: 40, alignment: .trailing)
         }
     }
 }
@@ -180,7 +194,9 @@ private struct PauseResumeButton: View {
 
 // MARK: - Previews
 #Preview("Recording – idle") {
-    RecordingView(viewModel: RecordPitchViewModel(isPreview: true))
+    NavigationStack {
+        RecordingView(viewModel: RecordPitchViewModel(isPreview: true))
+    }
 }
 
 #Preview("Recording – active") {
@@ -191,5 +207,7 @@ private struct PauseResumeButton: View {
         let t = Float(i) / 60
         return max(0.15, abs(sin(t * .pi * 5)) * 0.85 + Float.random(in: -0.1...0.1))
     }
-    return RecordingView(viewModel: vm)
+    return NavigationStack {
+        RecordingView(viewModel: vm)
+    }
 }

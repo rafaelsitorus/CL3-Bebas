@@ -110,46 +110,33 @@ enum SpeechIssue: String, CaseIterable, Identifiable {
     }
 }
 
-// HistoryCardLink tidak berubah
 struct HistoryCardLink: View {
     let title: String
     let date: Date
     let duration: TimeInterval
     let issues: [SpeechIssue]
-    let result: PitchAnalysisResult
-    let onBackToHome: (() -> Void)?
-    let onPaceTap: () -> Void
+    let onTap: () -> Void
 
     init(
         title: String,
         date: Date,
         duration: TimeInterval,
         issues: [SpeechIssue],
-        result: PitchAnalysisResult = PitchAnalysisResult(
-            pace: .tooFast,
-            articulation: .unclear,
-            intonation: .expressive
-        ),
-        onBackToHome: (() -> Void)? = nil,
-        onPaceTap: @escaping () -> Void
+        onTap: @escaping () -> Void
     ) {
         self.title = title
         self.date = date
         self.duration = duration
         self.issues = issues
-        self.result = result
-        self.onBackToHome = onBackToHome
-        self.onPaceTap = onPaceTap
+        self.onTap = onTap
     }
 
     var body: some View {
-        NavigationLink {
-            ReviewSummaryView(
-                result: result,
-                onContinue: {},
-                onBack: onBackToHome,
-                onPaceTap: { onPaceTap() }
-            )
+        // A plain button (not a NavigationLink) so the parent can
+        // decide what to push. This keeps the navigation decisions
+        // in the single source of truth (AppRootView).
+        Button {
+            onTap()
         } label: {
             HistoryCard(
                 title: title,

@@ -12,24 +12,22 @@ struct ReviewSummaryView: View {
     // MARK: - Dependencies
 
     @StateObject private var viewModel: ReviewSummaryViewModel
-    let onContinue: () -> Void
-    let onBack: (() -> Void)?
     let onPaceTap: () -> Void
-    
-    @Environment(\.dismiss) private var dismiss
+    let onArticulationTap: () -> Void
+    let onIntonationTap: () -> Void
 
     // MARK: - Init
 
     init(
         result: PitchAnalysisResult,
-        onContinue: @escaping () -> Void,
-        onBack: (() -> Void)? = nil,
-        onPaceTap: @escaping () -> Void
+        onPaceTap: @escaping () -> Void,
+        onArticulationTap: @escaping () -> Void = {},
+        onIntonationTap: @escaping () -> Void = {}
     ) {
         _viewModel = StateObject(wrappedValue: ReviewSummaryViewModel(result: result))
-        self.onContinue = onContinue
-        self.onBack = onBack
         self.onPaceTap = onPaceTap
+        self.onArticulationTap = onArticulationTap
+        self.onIntonationTap = onIntonationTap
     }
 
     // MARK: - Body
@@ -56,7 +54,7 @@ struct ReviewSummaryView: View {
                     labelColor: viewModel.result.intonation.labelColor,
                     progress: viewModel.intonationProgress,
                     onTap: {
-                        
+                        onIntonationTap()
                     }
                 )
 
@@ -81,7 +79,9 @@ struct ReviewSummaryView: View {
                     labelText: viewModel.result.articulation.rawValue,
                     labelColor: viewModel.result.articulation.labelColor,
                     progress: viewModel.articulationProgress,
-                    onTap: {}
+                    onTap: {
+                        onArticulationTap()
+                    }
                 )
             }
             .padding(.horizontal, 20)
@@ -90,23 +90,7 @@ struct ReviewSummaryView: View {
         }
         .navigationTitle("Pitch Review")
         .navigationBarTitleDisplayMode(.large)
-        .navigationBarBackButtonHidden(true)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button(action: handleBack) {
-                    Image(systemName: "chevron.left")
-                }
-            }
-        }
         .background(Color(.systemGroupedBackground))
-    }
-    
-    private func handleBack() {
-        if let onBack {
-            onBack()
-        } else {
-            dismiss()
-        }
     }
 }
 
@@ -120,9 +104,9 @@ struct ReviewSummaryView: View {
                 articulation: .unclear,
                 intonation: .expressive
             ),
-            onContinue: {
-            },
-            onPaceTap: {}
+            onPaceTap: {},
+            onArticulationTap: {},
+            onIntonationTap: {}
         )
     }
 }

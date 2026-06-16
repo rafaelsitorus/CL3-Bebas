@@ -9,10 +9,18 @@ import SwiftUI
 
 struct HomeView: View {
     @State private var scrollPosition: Int? = 0
-        
+
     let cardWidth: CGFloat = 300
     let cardSpacing: CGFloat = 2
-    
+
+    /// Triggered when the user taps an article card.
+    /// Connected natively by the root NavigationStack.
+    let onArticleTap: (Article) -> Void
+
+    init(onArticleTap: @escaping (Article) -> Void = { _ in }) {
+        self.onArticleTap = onArticleTap
+    }
+
     var body: some View {
         ZStack(alignment: .bottom) {
             ScrollView(showsIndicators: false) {
@@ -22,22 +30,22 @@ struct HomeView: View {
                         .padding(.top)
                         .padding(.leading)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    
+
                     HStack {
                         Text("53").customExpandedBT(size: 90)
                             .padding(.leading)
-                        
+
                         VStack {
                             Text("%")
                                 .customExpandedBT(size: 25)
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                            
+
                             Text("Progressing")
                                 .font(Text.CustomExpandedT2)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
-                    
+
                     ProgressView(value: 53, total: 100)
                         .progressViewStyle(.linear)
                         .tint(.primary)
@@ -46,14 +54,14 @@ struct HomeView: View {
                         .frame(height: 8)
                         .clipShape(RoundedRectangle(cornerRadius: Radius.ProgressBar))
                         .padding(.horizontal)
-                    
+
                     Spacer()
-                    
+
                     Text("Your pitching performance demonstrates a highly commendable upward.")
                         .font(Text.CustomBody)
                         .padding(.leading)
                         .padding(.bottom, 32)
-                    
+
                     GeometryReader { geo in
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: cardSpacing) {
@@ -76,7 +84,7 @@ struct HomeView: View {
                         .contentMargins(.horizontal, (geo.size.width - cardWidth) / 2, for: .scrollContent)
                     }
                         .frame(height: 200)
-                    
+
                     HStack(spacing: 6) {
                         ForEach(0..<3, id: \.self) { index in
                             Circle()
@@ -91,21 +99,33 @@ struct HomeView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.top, 8)
-                    
+
                     Divider()
                         .frame(height: 1)
                         .background(Color.gray.opacity(0.35))
                         .padding(.horizontal)
                         .padding(.top, 8)
-                    
+
                     Text("ARTICLE")
                         .font(Text.CustomExpandedSH)
                         .padding(.top)
                         .padding(.leading)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    
-                    ArticleCard(imageName: "GreyImg",title: "PITCHING TIPS", status: "How To Control Your Speaking Pace Under Pressure")
+
+                    // Tapping the article card pushes ArticleView natively
+                    // onto the main NavigationStack via the callback
+                    // supplied by AppRootView.
+                    Button {
+                        onArticleTap(Article.pitchingTips)
+                    } label: {
+                        ArticleCard(
+                            imageName: "GreyImg",
+                            title: "PITCHING TIPS",
+                            status: "How To Control Your Speaking Pace Under Pressure"
+                        )
                         .frame(maxWidth: .infinity, alignment: .center)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
         }

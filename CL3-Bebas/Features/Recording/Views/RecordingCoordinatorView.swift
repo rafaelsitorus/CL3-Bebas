@@ -9,15 +9,29 @@ import SwiftUI
 
 struct RecordPitchCoordinatorView: View {
 
+    /// Fired when the user has finished their pitch and confirmed
+    /// the recording (e.g. taps the checkmark on the recording page).
     let onFinished: () -> Void
+
+    /// Fired when the user confirms a language and moves from the
+    /// language-selection page into the recording page.
+    let onLanguageConfirmed: () -> Void
+
+    /// Fired when the user explicitly cancels / dismisses the
+    /// recording flow before finishing.
+    let onCancelled: () -> Void
 
     @StateObject private var viewModel: RecordPitchViewModel
 
     init(
         isPreview: Bool = false,
-        onFinished: @escaping () -> Void = {}
+        onLanguageConfirmed: @escaping () -> Void = {},
+        onFinished: @escaping () -> Void = {},
+        onCancelled: @escaping () -> Void = {}
     ) {
+        self.onLanguageConfirmed = onLanguageConfirmed
         self.onFinished = onFinished
+        self.onCancelled = onCancelled
 
         _viewModel = StateObject(
             wrappedValue: RecordPitchViewModel(
@@ -32,7 +46,16 @@ struct RecordPitchCoordinatorView: View {
 
             case .languageSelection:
                 RecordingLanguageSelectionView(
-                    viewModel: viewModel
+                    viewModel: viewModel,
+                    onConfirm: {
+                        // Notify the host that the user has moved past
+                        // language selection. After this point the
+                        // coordinator must behave as a one-time form.
+                        onLanguageConfirmed()
+                    },
+                    onCancel: {
+                        onCancelled()
+                    }
                 )
                 .transition(
                     .asymmetric(
@@ -44,7 +67,12 @@ struct RecordPitchCoordinatorView: View {
             case .recording:
                 RecordingView(
                     viewModel: viewModel,
-                    onConfirm: onFinished
+                    onConfirm: onFinished,
+                    // Once the user is on the recording page, the
+                    // "checklist" / back button must NOT let them
+                    // return to a previous recording — it should
+                    // dismiss the cover instead.
+                    onCancel: onCancelled
                 )
                 .transition(
                     .asymmetric(
@@ -76,4 +104,3 @@ struct RecordPitchCoordinatorView: View {
     }
     return RecordingView(viewModel: vm)
 }
-

@@ -17,7 +17,7 @@ struct HistoryView: View {
     @State private var isSelectMode = false
     @Environment(\.dismiss) private var dismiss
 
-    let onPaceTap: () -> Void
+    let onRecordingTap: (PitchAnalysisResult) -> Void
 
     enum FilterOption: String, CaseIterable {
         case all          = "All"
@@ -62,8 +62,18 @@ struct HistoryView: View {
         return result
     }
 
-    init(onPaceTap: @escaping () -> Void = {}) {
-        self.onPaceTap = onPaceTap
+    /// Default analysis result used as a placeholder until each
+    /// recording carries its own real metrics.
+    private var defaultResult: PitchAnalysisResult {
+        PitchAnalysisResult(
+            pace: .tooFast,
+            articulation: .unclear,
+            intonation: .expressive
+        )
+    }
+
+    init(onRecordingTap: @escaping (PitchAnalysisResult) -> Void = { _ in }) {
+        self.onRecordingTap = onRecordingTap
     }
 
     var body: some View {
@@ -96,7 +106,7 @@ struct HistoryView: View {
                                 date: recording.date,
                                 duration: recording.duration,
                                 issues: recording.issues,
-                                onPaceTap: { onPaceTap() }
+                                onTap: { onRecordingTap(defaultResult) }
                             )
                             Divider().padding(.leading, 20)
                         }

@@ -40,14 +40,14 @@ enum Language: String, CaseIterable, Identifiable {
     }
 }
 
-struct PitchAnalysisResult {
+struct PitchAnalysisResult: Hashable {
     var pace: PaceRating
     var articulation: ArticulationRating
     var intonation: IntonationRating
 
-    enum PaceRating: String { case tooFast = "Too Fast", good = "Good", tooSlow = "Too Slow" }
-    enum ArticulationRating: String { case unclear = "Unclear", clear = "Clear", veryClear = "Very Clear" }
-    enum IntonationRating: String { case expressive = "Expressive", flat = "Flat", varied = "Varied" }
+    enum PaceRating: String, Hashable { case tooFast = "Too Fast", good = "Good", tooSlow = "Too Slow" }
+    enum ArticulationRating: String, Hashable { case unclear = "Unclear", clear = "Clear", veryClear = "Very Clear" }
+    enum IntonationRating: String, Hashable { case expressive = "Expressive", flat = "Flat", varied = "Varied" }
 }
 
 @MainActor

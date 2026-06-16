@@ -95,10 +95,12 @@ class SpeechAnalyzer: ObservableObject {
     }
 
     init() {
-        // Hardcode English for now
+        // Don't set languageCode here — let the caller configure it.
+        // Default to English until told otherwise.
         speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
-        languageCode = "en"
+        // Remove: languageCode = "en"  ← this was triggering didSet redundantly
     }
+    
     func warmup() {
         // Model disabled for now — just prime the speech recognizer
         _ = speechRecognizer?.isAvailable

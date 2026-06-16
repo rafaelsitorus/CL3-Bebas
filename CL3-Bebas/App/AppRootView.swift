@@ -7,6 +7,7 @@ import SwiftUI
 // `OnboardingStep` values on the same stack — SwiftUI dispatches
 // to the matching `navigationDestination(for:)` modifier per type.
 
+
 enum AppRoute: Hashable {
     case reviewSummary(AnalysisResult)   
     case paceReview(AnalysisResult)
@@ -63,6 +64,9 @@ struct AppRootView: View {
     /// Identifies the active peer root page. Switching the tab
     /// replaces the NavigationStack's root with the new page.
     @State private var currentTab: AppTab = .home
+    @State private var isAnalyzing: Bool = false
+    @State private var analyzer = SpeechAnalyzer()
+
 
     var body: some View {
         // Single NavigationStack bound to the shared path. The root
@@ -111,7 +115,7 @@ struct AppRootView: View {
             }
         }
         .toolbarBackground(.hidden, for: .bottomBar)
-
+        
         // MARK: - Recording (one-time form)
         // Presented as a full-screen cover. The inner NavigationStack
         // gives the recording view a proper navigation bar (title +
@@ -120,33 +124,22 @@ struct AppRootView: View {
         .fullScreenCover(isPresented: $presentedRecording) {
             NavigationStack {
                 RecordPitchCoordinatorView(
-                    onLanguageConfirmed: {
-                        // No-op for now: the coordinator manages its
-                        // own internal page transition.
-                    },
-                    onFinished: {
+                    onLanguageConfirmed: {},
+                    onFinished: { audioData, langCode in
+                        // Dismiss cover first, then analyze
                         presentedRecording = false
-                        onboardingViewModel.path.append(
-                            AppRoute.reviewSummary(
-                                AnalysisResult(          // ← was PitchAnalysisResult
-                                                transcription: "",
-                                                duration: 0,
-                                                wordsPerMinute: 0,
-                                                paceLabel: "Good",
-                                                averageAmplitudeDB: -20,
-                                                volumeLabel: "Good",
-                                                pitchSamples: [],
-                                                pitchVariance: 0,
-                                                intonationLabel: "Varied",
-                                                amplitudeSamples: [],
-                                                articulationScore: 0.75,
-                                                pronunciationIssues: [],
-                                                audioFileURL: nil,
-                                                intonationHighlight: nil,
-                                                paceHighlight: nil
-                                            )
-                            )
-                        )
+                        isAnalyzing = true
+                        analyzer.languageCode = langCode  // ← fixes English-only bug
+                        
+                        Task {
+                            do {
+                                let result = try await analyzer.analyze(audioData: audioData)
+                                onboardingViewModel.path.append(AppRoute.reviewSummary(result))
+                            } catch {
+                                print("Analysis failed: \(error)")
+                            }
+                            isAnalyzing = false
+                        }
                     },
                     onCancelled: {
                         presentedRecording = false
@@ -154,8 +147,26 @@ struct AppRootView: View {
                 )
             }
         }
+        // Show a loading overlay while analysis runs
+        .overlay {
+            if isAnalyzing {
+                ZStack {
+                    Color.black.opacity(0.4).ignoresSafeArea()
+                    VStack(spacing: 16) {
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                            .tint(.white)
+                            .scaleEffect(1.4)
+                        Text("Analysing your pitch…")
+                            .foregroundStyle(.white)
+                            .font(.system(size: 15, weight: .medium))
+                    }
+                    .padding(32)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+                }
+            }
+        }
     }
-
     // MARK: - Destination Resolver
 
     @ViewBuilder

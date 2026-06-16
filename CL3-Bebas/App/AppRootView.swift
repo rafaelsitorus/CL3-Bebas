@@ -118,8 +118,11 @@ struct AppRootView: View {
         // MARK: - Recording (one-time form)
         // Presented as a full-screen cover. The inner NavigationStack
         // gives the recording view a proper navigation bar (title +
-        // checkmark + cancel). When the user confirms, the cover
-        // dismisses and ReviewSummary is pushed onto the main stack.
+        // checkmark + cancel). When the user confirms, we keep the
+        // cover open and present the AnalyzingRecordingView on top
+        // of the recording pages. Once analysis finishes the cover
+        // is dismissed and ReviewSummary is pushed onto the main
+        // NavigationStack.
         .fullScreenCover(isPresented: $presentedRecording) {
             // The recording cover is a one-time form. We give it
             // its own NavigationStack so each inner view can declare
@@ -128,35 +131,60 @@ struct AppRootView: View {
             // back chevron and the inherited bottom toolbar so the
             // cover is a clean full-screen sheet with only the
             // intentional toolbar items the inner views declare.
-            NavigationStack {
-                RecordPitchCoordinatorView(
-                    onLanguageConfirmed: {},
-                    onFinished: { audioData, langCode in
-                        // Dismiss cover first, then push a fresh
-                        // ReviewSummary with a dummy AnalysisResult
-                        // so the rest of the navigation flow can be
-                        // demonstrated end-to-end.
-                        presentedRecording = false
-                        isAnalyzing = true
-                        analyzer.languageCode = langCode
-                        // ← fixes English-only bug
-                        
-                        Task {
-                            do {
-                                let result = try await analyzer.analyze(audioData: audioData)
-                                onboardingViewModel.path.append(AppRoute.reviewSummary(result))
-                            } catch {
-                                print("Analysis failed: \(error)")
+            ZStack {
+                NavigationStack {
+                    RecordPitchCoordinatorView(
+                        onLanguageConfirmed: {},
+                        onFinished: { audioData, langCode in
+                            // Keep the cover open. Swap the
+                            // recording pages for the analysing
+                            // view (pulsing icon + spinner) and run
+                            // the real analyzer on a background
+                            // task. When it finishes we dismiss the
+                            // cover and push ReviewSummary onto the
+                            // main stack.
+                            isAnalyzing = true
+                            analyzer.languageCode = langCode
+                            // ← fixes English-only bug
+
+                            Task {
+                                do {
+                                    let result = try await analyzer.analyze(audioData: audioData)
+                                    presentedRecording = false
+                                    isAnalyzing = false
+                                    onboardingViewModel.path.append(
+                                        AppRoute.reviewSummary(result)
+                                    )
+                                } catch {
+                                    print("Analysis failed: \(error)")
+                                    presentedRecording = false
+                                    isAnalyzing = false
+                                }
                             }
-                            isAnalyzing = false
+                        },
+                        onCancelled: {
+                            presentedRecording = false
                         }
-                    },
-                    onCancelled: {
-                        presentedRecording = false
-                    }
-                )
+                    )
+                }
+                .toolbar(.hidden, for: .bottomBar)
+                // Hide the recording pages while analysis is running
+                // so only the analysing view is visible. SwiftUI
+                // doesn't animate the swap-out by default, but the
+                // analysing view itself has a pulsing icon and
+                // spinner which give the user clear feedback.
+                .opacity(isAnalyzing ? 0 : 1)
+                .allowsHitTesting(!isAnalyzing)
+
+                // Show the analysing view on top of the recording
+                // pages once `isAnalyzing` is true. The view fades
+                // the recording pages out (above) and the analysing
+                // view fades in with its built-in pulse + spinner.
+                if isAnalyzing {
+                    AnalyzingRecordingView()
+                        .transition(.opacity)
+                }
             }
-            .toolbar(.hidden, for: .bottomBar)
         }
     }
 

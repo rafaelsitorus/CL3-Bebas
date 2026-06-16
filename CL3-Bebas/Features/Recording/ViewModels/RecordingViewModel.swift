@@ -36,6 +36,11 @@ final class RecordPitchViewModel: ObservableObject {
     @Published var permissionDenied: Bool  = false
     @Published var isConfirmed:      Bool  = false
 
+    // Alert states for the new UI
+    @Published var showReRecordAlert:  Bool = false
+    @Published var showFinishAlert:    Bool = false
+    @Published var showTimeLimitAlert: Bool = false
+
     /// Set once `confirmRecording()` stops the underlying AudioRecorder.
     /// Carries the captured amplitude/pitch samples + file URL for
     /// whatever eventually builds the pace / articulation / intonation
@@ -77,6 +82,12 @@ final class RecordPitchViewModel: ObservableObject {
     // MARK: - Navigation
     func confirmLanguageSelection() {
         currentPage = .recording
+        // Do NOT auto-start recording here.
+        // The user must tap the mic button on the RecordingView.
+    }
+
+    /// Called by the UI when the user taps the mic / record button.
+    func beginRecordingSession() {
         if isPreview {
             startPreviewPlayback()
         } else {
@@ -84,9 +95,31 @@ final class RecordPitchViewModel: ObservableObject {
         }
     }
 
+    /// Re-record: stop current, reset to idle (mic button) state.
+    func reRecord() {
+        if isPreview {
+            cancelPreviewTimers()
+        } else {
+            _ = audioRecorder.stopRecording()
+            audioRecorder.reset()
+            cancelClock()
+        }
+        isRecording    = false
+        isPaused       = false
+        elapsedSeconds = 0
+        waveformBars   = Self.makeFlatBars()
+    }
+
+    /// Called when the user confirms finishing (from alert).
+    func finishRecording() {
+        confirmRecording()
+    }
+
     func goBack() {
         guard currentPage == .recording else { return }
         teardown()
+        elapsedSeconds = 0
+        waveformBars   = Self.makeFlatBars()
         currentPage = .languageSelection
     }
 
@@ -189,7 +222,14 @@ final class RecordPitchViewModel: ObservableObject {
             .sink { [weak self] _ in
                 guard let self else { return }
                 self.elapsedSeconds += 1
-                if self.elapsedSeconds >= self.maxSeconds { self.confirmRecording() }
+                if self.elapsedSeconds >= self.maxSeconds {
+                    self.cancelClock()
+                    if !self.isPreview {
+                        self.audioRecorder.pauseRecording()
+                    }
+                    self.isPaused = true
+                    self.showTimeLimitAlert = true
+                }
             }
     }
 
@@ -207,7 +247,10 @@ final class RecordPitchViewModel: ObservableObject {
             .sink { [weak self] _ in
                 guard let self else { return }
                 self.elapsedSeconds += 1
-                if self.elapsedSeconds >= self.maxSeconds { self.confirmRecording() }
+                if self.elapsedSeconds >= self.maxSeconds {
+                    self.cancelPreviewTimers()
+                    self.showTimeLimitAlert = true
+                }
             }
         levelCancellable = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common)
             .autoconnect()

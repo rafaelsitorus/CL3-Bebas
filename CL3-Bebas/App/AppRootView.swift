@@ -108,10 +108,12 @@ struct AppRootView: View {
         // recording full-screen cover is presented, SwiftUI hides the
         // underlying toolbar automatically — no conditional needed.
         .toolbar {
-            ToolbarItemGroup(placement: .bottomBar) {
-                bottomBarLeading
-                Spacer(minLength: 0)
-                bottomBarTrailing
+            if shouldShowBottomBar {
+                ToolbarItemGroup(placement: .bottomBar) {
+                    bottomBarLeading
+                    Spacer(minLength: 0)
+                    bottomBarTrailing
+                }
             }
         }
         .toolbarBackground(.hidden, for: .bottomBar)
@@ -199,6 +201,11 @@ struct AppRootView: View {
     }
 
     // MARK: - Bottom Bar Buttons
+    
+    private var shouldShowBottomBar: Bool {
+        onboardingComplete &&
+        onboardingViewModel.path.isEmpty
+    }
 
     private var bottomBarLeading: some View {
         HStack(spacing: 6) {
@@ -230,6 +237,8 @@ struct AppRootView: View {
         }
         .padding(6)
         .glassEffect(.regular, in: Capsule())
+        
+        .frame(maxWidth: .infinity)
     }
 
     private var bottomBarTrailing: some View {

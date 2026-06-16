@@ -50,7 +50,7 @@ struct RecordPitchCoordinatorView: View {
                             onFinished(sample, langCode)
                         }
                     },
-                    onCancel: onCancelled
+                    onCancel: { viewModel.goBack() }
                 )
                 .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .trailing)))
             }

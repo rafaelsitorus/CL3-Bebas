@@ -29,6 +29,9 @@ extension Text {
     // Title 2
     static let Title2Regular = Font.system(.title2).weight(.regular)
     
+    // Headline
+    static let CustomHeadlineCard = Font.system(.headline).weight(.semibold)
+    
     // SubHead
     static let CustomCondensedSH = Font.system(.subheadline).weight(.semibold).width(.condensed)
     

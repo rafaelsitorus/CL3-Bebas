@@ -10,7 +10,7 @@ import SwiftUI
 struct HomeView: View {
     @State private var scrollPosition: Int? = 0
 
-    let cardWidth: CGFloat = 300
+    let cardWidth: CGFloat = 320
     let cardSpacing: CGFloat = 2
 
     /// Triggered when the user taps an article card.
@@ -81,9 +81,9 @@ struct HomeView: View {
                         .scrollTargetBehavior(.viewAligned)
                         .scrollClipDisabled()
                         .scrollPosition(id: $scrollPosition)
-                        .contentMargins(.horizontal, (geo.size.width - cardWidth) / 2, for: .scrollContent)
+                        .contentMargins(.horizontal, 2, for: .scrollContent)
                     }
-                        .frame(height: 200)
+                        .frame(height: 220)
 
                     HStack(spacing: 6) {
                         ForEach(0..<3, id: \.self) { index in

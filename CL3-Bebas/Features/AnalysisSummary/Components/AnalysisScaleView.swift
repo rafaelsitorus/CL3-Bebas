@@ -1,51 +1,28 @@
-//
-//  AnalysisScaleView.swift
-//  CL3-Bebas
-//
-//  Created by Theona Arlinton on 16/06/26.
-//
-
-
 import SwiftUI
+
+// MARK: - Tick
+
+struct ScaleTick {
+    let fraction: Double   // 0–1 position on the track
+    let label: String
+    let isBold: Bool       // true = the "current value" tick
+}
 
 // MARK: - AnalysisScaleView
 
-/// A reusable horizontal score scale used across all three analysis
-/// detail screens (Articulation, Intonation, Pace).
-///
-/// Layout (matches mockup):
-///   ```
-///   0%    25%    43%    100%
-///   ━━━━━━━━━━●──────────
-///   Leading              Trailing
-///   ```
-///
-/// Parameters
-/// - `fraction`: Position of the marker dot, clamped 0…1.
-/// - `tickLabel`: The centre tick label (e.g. "43%" or "±35 Hz").
-/// - `leadingLabel`: Left endpoint label  (e.g. "Clear" / "Expressive" / "Ideal").
-/// - `trailingLabel`: Right endpoint label (e.g. "Unclear" / "Flat" / "Too Fast").
-
 struct AnalysisScaleView: View {
 
-    // MARK: Properties
-
-    /// 0–1 position of the dot on the track.
-    let fraction: Double
-    /// Label shown at the midpoint tick — usually the formatted score.
-    let tickLabel: String
-    /// Left endpoint label.
+    let fraction: Double        // dot position 0–1
+    let ticks: [ScaleTick]      // all tick labels to show above the track
     let leadingLabel: String
-    /// Right endpoint label.
     let trailingLabel: String
 
-    // MARK: Private
+    // Highlighted range on the track (e.g. "normal" zone) — optional
+    var highlightRange: ClosedRange<Double>? = nil
 
     private var clampedFraction: CGFloat {
-        CGFloat(fraction.clamped(to: 0...1))
+        CGFloat(max(0, min(1, fraction)))
     }
-
-    // MARK: Body
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -55,38 +32,46 @@ struct AnalysisScaleView: View {
         }
     }
 
-    // MARK: Sub-views
+    // MARK: Tick labels row
+
+    // MARK: Tick labels row
 
     private var tickLabels: some View {
-        HStack {
-            Text("0%")
-            Spacer()
-            Text("25%")
-            Spacer()
-            Text(tickLabel)
-                .fontWeight(.bold)
-                .foregroundStyle(.black)
-            Spacer()
-            Text("100%")
+        GeometryReader { geo in
+            ZStack(alignment: .topLeading) {
+                ForEach(Array(ticks.enumerated()), id: \.offset) { _, tick in
+                    TickLabel(tick: tick, trackWidth: geo.size.width)
+                }
+            }
         }
-        .font(.caption)
-        .foregroundStyle(.secondary)
+        .frame(height: 16)
     }
+    // MARK: Track
 
     private var track: some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
-                // Background track
+                // Background
                 Capsule()
                     .fill(Color.black.opacity(0.08))
                     .frame(height: 4)
 
-                // Filled portion
+                // Optional highlight zone (e.g. normal/ideal range)
+                if let range = highlightRange {
+                    let x = geo.size.width * CGFloat(range.lowerBound)
+                    let w = geo.size.width * CGFloat(range.upperBound - range.lowerBound)
+                    Capsule()
+                        .fill(Color.black.opacity(0.18))
+                        .frame(width: w, height: 4)
+                        .offset(x: x)
+                }
+
+                // Filled portion up to dot
                 Capsule()
                     .fill(Color.black.opacity(0.55))
                     .frame(width: geo.size.width * clampedFraction, height: 4)
 
-                // Marker dot
+                // Dot
                 Circle()
                     .fill(Color.black)
                     .frame(width: 14, height: 14)
@@ -97,18 +82,21 @@ struct AnalysisScaleView: View {
         .frame(height: 14)
     }
 
+    // MARK: Endpoint labels
+
     private var endpointLabels: some View {
         HStack {
             Text(leadingLabel)
+                .font(.caption)
+                .foregroundStyle(.secondary)
             Spacer()
             Text(trailingLabel)
+                .font(.caption)
+                .fontWeight(.bold)
+                .foregroundStyle(.black)
         }
-        .font(.caption)
-        .foregroundStyle(.secondary)
     }
 }
-
-// MARK: - Double clamped (file-private)
 
 private extension Double {
     func clamped(to range: ClosedRange<Double>) -> Double {
@@ -116,28 +104,41 @@ private extension Double {
     }
 }
 
-// MARK: - Preview
+// MARK: - TickLabel
 
-#Preview {
-    VStack(spacing: 32) {
-        AnalysisScaleView(
-            fraction: 0.43,
-            tickLabel: "43%",
-            leadingLabel: "Clear",
-            trailingLabel: "Unclear"
-        )
-        AnalysisScaleView(
-            fraction: 0.7,
-            tickLabel: "±56 Hz",
-            leadingLabel: "Expressive",
-            trailingLabel: "Flat"
-        )
-        AnalysisScaleView(
-            fraction: 1.0,
-            tickLabel: "100%",
-            leadingLabel: "Ideal",
-            trailingLabel: "Too Fast"
-        )
+/// Reads its own width via PreferenceKey so it can pin:
+///   fraction == 0  → leading edge flush with track start
+///   fraction == 1  → trailing edge flush with track end
+///   else           → centered on fraction
+private struct TickLabel: View {
+    let tick: ScaleTick
+    let trackWidth: CGFloat
+
+    @State private var labelWidth: CGFloat = 0
+
+    var body: some View {
+        Text(tick.label)
+            .font(.caption)
+            .fontWeight(tick.isBold ? .bold : .regular)
+            .foregroundStyle(tick.isBold ? Color.black : Color.secondary)
+            .fixedSize()
+            .background(
+                GeometryReader { g in
+                    Color.clear.onAppear { labelWidth = g.size.width }
+                }
+            )
+            .offset(x: xOffset)
+            .frame(height: 16, alignment: .top)
     }
-    .padding(24)
+
+    private var xOffset: CGFloat {
+        let center = trackWidth * CGFloat(tick.fraction) - labelWidth / 2
+        if tick.fraction <= 0.01 {
+            return 0                          // flush left
+        } else if tick.fraction >= 0.99 {
+            return trackWidth - labelWidth    // flush right
+        } else {
+            return center
+        }
+    }
 }

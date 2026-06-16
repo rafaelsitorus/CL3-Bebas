@@ -239,7 +239,7 @@ private struct SentencePlaybackCard: View {
         let match  = String(text[range])
         let after  = String(text[range.upperBound...])
 
-        return Text(before) + Text(match).bold() + Text(after)
+        return Text("\(before)\(Text(match).bold())\(after)")
     }
 }
 

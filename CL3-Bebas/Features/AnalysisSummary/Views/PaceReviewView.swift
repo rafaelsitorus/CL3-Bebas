@@ -1,34 +1,16 @@
-//
-//  PaceReviewView.swift
-
-
 import SwiftUI
-
 
 struct PaceReviewView: View {
 
-    // MARK: Properties
-
     let result: AnalysisResult
-
-    // MARK: Private
 
     @Environment(\.dismiss) private var dismiss
 
-    private var scaleFraction: Double {
-        let wpm = Float(result.wordsPerMinute)
-        let raw: Float
-        if wpm >= 110 && wpm <= 160 {
-            raw = 1.0
-        } else if wpm < 110 {
-            raw = max(0, wpm / 110)
-        } else {
-            raw = max(0, 1 - (wpm - 160) / 100)
-        }
-        return Double(raw)
+    // Map WPM 60–200 linearly to 0–1
+    private var paceCurrentFraction: Double {
+        let wpm = max(60.0, min(200.0, result.wordsPerMinute))
+        return (wpm - 60) / (200 - 60)
     }
-
-    // MARK: Body
 
     var body: some View {
         ScrollView {
@@ -37,10 +19,17 @@ struct PaceReviewView: View {
                 sectionLabel("ANALYSIS")
                 headerRow
                 AnalysisScaleView(
-                    fraction: scaleFraction,
-                    tickLabel: "\(Int(result.wordsPerMinute)) WPM",
-                    leadingLabel: "Ideal",
-                    trailingLabel: result.paceLabel
+                    fraction: paceCurrentFraction,
+                    ticks: [
+                        ScaleTick(fraction: 0.0,                label: "60",                          isBold: false),
+                        ScaleTick(fraction: 0.5,                label: "130",                         isBold: false),
+                        ScaleTick(fraction: 0.714,              label: "160",                         isBold: false),
+                        ScaleTick(fraction: paceCurrentFraction, label: "\(Int(result.wordsPerMinute))", isBold: true),
+                        ScaleTick(fraction: 1.0,                label: "200",                         isBold: false),
+                    ],
+                    leadingLabel: "Too Slow",
+                    trailingLabel: result.wordsPerMinute > 160 ? "Too Fast" : "Normal",
+                    highlightRange: 0.5...0.714
                 )
                 explanationText
                 Divider()
@@ -106,7 +95,6 @@ struct PaceReviewView: View {
                 .font(Text.CustomBody)
                 .foregroundStyle(.black.opacity(0.85))
                 .fixedSize(horizontal: false, vertical: true)
-
             if let highlight = result.paceHighlight, let url = result.audioFileURL {
                 AudioHighlightCard(highlight: highlight, audioFileURL: url)
             } else {
@@ -124,8 +112,6 @@ struct PaceReviewView: View {
             ImprovementTipsList(tips: improvementTips)
         }
     }
-
-    // MARK: Helpers
 
     private func sectionLabel(_ text: String) -> some View {
         Text(text)
@@ -175,8 +161,6 @@ struct PaceReviewView: View {
         }
     }
 }
-
-// MARK: - Preview
 
 #Preview {
     NavigationStack {

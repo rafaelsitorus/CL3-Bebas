@@ -83,11 +83,11 @@ struct ReviewSummaryView: View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Title Recording 1")
-                    .font(.system(size: 28, weight: .bold))
+                    .font(Text.TitleRegular)
                     .foregroundStyle(.black)
 
                 Text(recordingDateString)
-                    .font(.subheadline)
+                    .font(Text.CustomFootnote)
                     .foregroundStyle(.secondary)
             }
 
@@ -95,11 +95,11 @@ struct ReviewSummaryView: View {
 
             VStack(alignment: .trailing, spacing: 2) {
                 Text("\(scorePercent)%")
-                    .font(.system(size: 34, weight: .bold))
+                    .font(Text.TitleRegular)
                     .foregroundStyle(.black)
 
                 Text("Score")
-                    .font(.subheadline)
+                    .font(Text.CustomFootnote)
                     .foregroundStyle(.secondary)
             }
         }

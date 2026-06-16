@@ -1,7 +1,6 @@
 //
 //  IntonationReviewView.swift
 
-
 import SwiftUI
 
 struct IntonationReviewView: View {
@@ -12,15 +11,28 @@ struct IntonationReviewView: View {
 
     // MARK: Private
 
-    /// Standard deviation of pitch samples in Hz.
-    private var pitchSD: Float {
-        sqrt(result.pitchVariance)
+    @Environment(\.dismiss) private var dismiss
+
+    // MARK: PDQ Calculation
+    private var pdq: Double {
+        let samples = result.pitchSamples.filter { $0 > 0 }
+        guard samples.count >= 2 else { return 0 }
+        let meanPitch = Double(samples.reduce(0, +)) / Double(samples.count)
+        guard meanPitch > 0 else { return 0 }
+        let sumAbsDiff = zip(samples, samples.dropFirst())
+            .map { abs(Double($1) - Double($0)) }
+            .reduce(0, +)
+        let mad = sumAbsDiff / Double(samples.count - 1)
+        return mad / meanPitch
     }
 
-    /// Map pitch SD → 0–1 for the scale.
-    /// Flat < 20 Hz SD → near 0. Expressive > 20 Hz SD → toward 1. Capped at 80 Hz.
-    private var scaleFraction: Double {
-        Double(max(0, min(1, pitchSD / 80)))
+    private var pdqNormalized: Double {
+        min(1.0, pdq / 0.16)
+    }
+
+   
+    private var pdqDisplay: String {
+        String(format: "%.2f", min(pdq, 0.99))   // cap display at 0.99 to avoid "1.00"
     }
 
     // MARK: Body
@@ -31,10 +43,24 @@ struct IntonationReviewView: View {
                 sectionLabel("ANALYSIS")
                 headerRow
                 AnalysisScaleView(
-                    fraction: scaleFraction,
-                    tickLabel: String(format: "±%.0f Hz", pitchSD),
-                    leadingLabel: "Expressive",
-                    trailingLabel: "Flat"
+                    fraction: pdqNormalized,
+                    ticks: [
+                        ScaleTick(fraction: 0.0,
+                                  label: "0",
+                                  isBold: false),
+                        ScaleTick(fraction: 0.625,
+                                  label: "0.6",
+                                  isBold: false),   // normalized 0.625 = raw 0.10/0.16
+                        ScaleTick(fraction: min(1.0, pdqNormalized),
+                                  label: pdqDisplay,
+                                  isBold: true),
+                        ScaleTick(fraction: 1.0,
+                                  label: "1",
+                                  isBold: false),
+                    ],
+                    leadingLabel: "Flat",
+                    trailingLabel: "Expressive",
+                    highlightRange: 0.625...1.0
                 )
                 explanationText
                 Divider()
@@ -69,16 +95,16 @@ struct IntonationReviewView: View {
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 4) {
-                Text(String(format: "±%.0f", pitchSD))
+                Text(String(format: "%.2f", pdq))   // raw PDQ in header
                     .font(Text.CustomLargeTitle)
                     .foregroundStyle(.black)
-                Text("Hz SD")
+                Text("PDQ")
                     .font(Text.CustomExpandedSH)
                     .foregroundStyle(.secondary)
             }
         }
     }
-
+    
     private var explanationText: some View {
         Text(explanation)
             .font(Text.CustomBody)
@@ -124,24 +150,38 @@ struct IntonationReviewView: View {
     // MARK: Copy
 
     private var explanation: String {
-        result.intonationLabel == "Varied"
-            ? "Your pitch varied naturally throughout the recording, making your speech sound engaging and dynamic. Listeners are less likely to zone out when the speaker uses expressive intonation."
-            : "Your pitch stayed relatively flat throughout the recording. Monotone delivery can make listeners disengage. Try raising your voice on key points and lowering it at natural pauses."
+        switch pdq {
+        case 0.10...:
+            return "Your pitch dynamism is expressive (PDQ \(String(format: "%.2f", pdq))). Natural variation keeps listeners engaged and makes key points land harder."
+        case 0.05...:
+            return "Your pitch has some variation (PDQ \(String(format: "%.2f", pdq))), but there's room to be more expressive. Try emphasising key words with a rise in pitch."
+        default:
+            return "Your delivery is quite monotone (PDQ \(String(format: "%.2f", pdq))). Flat pitch makes it harder for listeners to stay engaged. Exaggerate your tone on important words."
+        }
     }
 
     private var improvementTips: [String] {
-        result.intonationLabel == "Varied"
-            ? [
+        switch pdq {
+        case 0.10...:
+            return [
                 "Keep varying your pitch naturally — it's already working.",
                 "Use a rising tone to signal questions or build suspense.",
                 "Lower your pitch at the end of statements to sound confident.",
-              ]
-            : [
+            ]
+        case 0.05...:
+            return [
+                "Emphasise key words by raising your pitch on them.",
+                "Read aloud daily and practice exaggerating your tone up and down.",
+                "Record yourself and compare your intonation to a confident speaker.",
+            ]
+        default:
+            return [
                 "Read aloud daily and exaggerate your pitch up and down.",
                 "Emphasise key words by raising your pitch on them.",
                 "Record yourself and compare your intonation to a confident speaker.",
                 "Pause before important points — the silence itself adds variety.",
-              ]
+            ]
+        }
     }
 }
 

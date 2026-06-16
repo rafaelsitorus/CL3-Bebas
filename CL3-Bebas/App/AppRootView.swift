@@ -65,7 +65,9 @@ struct AppRootView: View {
     /// Identifies the active peer root page. Switching the tab
     /// replaces the NavigationStack's root with the new page.
     @State private var currentTab: AppTab = .home
-
+    @State private var isAnalyzing: Bool = false
+    @State private var analyzer = SpeechAnalyzer()
+    
     /// Number of recordings completed so far — used to derive the
     /// next recording's title.
     @State private var recordingsCounter: Int = 0
@@ -124,37 +126,25 @@ struct AppRootView: View {
             NavigationStack {
                 RecordPitchCoordinatorView(
                     onLanguageConfirmed: {},
-                    onFinished: { _, langCode in
+                    onFinished: { audioData, langCode in
                         // Dismiss cover first, then push a fresh
                         // ReviewSummary with a dummy AnalysisResult
                         // so the rest of the navigation flow can be
                         // demonstrated end-to-end.
                         presentedRecording = false
-
-                        // Build a fresh, deterministic dummy result
-                        // seeded from the language the user picked.
-                        let result = makeDummyAnalysisResult(
-                            languageCode: langCode
-                        )
-
-                        // Append a new entry to the shared history
-                        // store so the user can see it in the
-                        // History tab right away.
-                        recordingsCounter += 1
-                        historyStore.append(
-                            RecordingHistory(
-                                title: "Recording \(recordingsCounter)",
-                                date: .now,
-                                duration: 30,
-                                issues: inferIssues(from: result)
-                            )
-                        )
-
-                        // Push the freshly-built ReviewSummary onto
-                        // the main NavigationStack.
-                        onboardingViewModel.path.append(
-                            AppRoute.reviewSummary(result)
-                        )
+                        isAnalyzing = true
+                        analyzer.languageCode = langCode
+                        // ← fixes English-only bug
+                        
+                        Task {
+                            do {
+                                let result = try await analyzer.analyze(audioData: audioData)
+                                onboardingViewModel.path.append(AppRoute.reviewSummary(result))
+                            } catch {
+                                print("Analysis failed: \(error)")
+                            }
+                            isAnalyzing = false
+                        }
                     },
                     onCancelled: {
                         presentedRecording = false

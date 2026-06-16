@@ -154,12 +154,26 @@ class SpeechAnalyzer: ObservableObject {
         progress = 0.4
 
         // ── Pace ──────────────────────────────────────────────────────
+        // In analyze(), replace the duration/wpm block:
+
+        // Use actual speech span from segments when available (excludes silence)
+        let speechDuration: TimeInterval = {
+            guard let first = segments.first, let last = segments.last else {
+                return max(audioData.recordingDuration, 1)
+            }
+            let span = TimeInterval(last.timestamp) + TimeInterval(last.duration)
+                - TimeInterval(first.timestamp)
+            // If span is implausibly short, fall back to recording duration
+            return span > 2.0 ? span : max(audioData.recordingDuration, 1)
+        }()
+
         let wordCount = fullText.split(separator: " ").count
-        let duration = max(audioData.recordingDuration, 1)
-        let wpm = Double(wordCount) / (duration / 60.0)
-        let pace = paceLabel(for: wpm)
+        let duration  = max(speechDuration, 1)
+        let wpm       = Double(wordCount) / (duration / 60.0)
+        let pace      = paceLabel(for: wpm)
+
         print("📝 '\(fullText)'")
-        print("📝 \(wordCount) words in \(String(format: "%.1f", duration))s = \(Int(wpm)) WPM → \(pace)")
+        print("📝 \(wordCount) words in \(String(format: "%.1f", duration))s (speech span) = \(Int(wpm)) WPM → \(pace)")
         progress = 0.5
 
         // ── Volume ─────────────────────────────────────────────────────
@@ -177,11 +191,13 @@ class SpeechAnalyzer: ObservableObject {
         progress = 0.65
 
         // ── Articulation (Speech confidence) ───────────────────────────
-        let (articulationScore, pronunciationIssues) = ArticulationPipelineSpeech.run(
+        let (rawArticulationScore, pronunciationIssues) = ArticulationPipelineSpeech.run(
             segments: segments,
             recordingDuration: duration,
-            languageCode: "en"
+            languageCode: languageCode
         )
+        let articulationScore: Float = segments.isEmpty ? 0.5 : max(rawArticulationScore, 0.0)
+
         progress = 0.85
 
         // ── Highlights ─────────────────────────────────────────────────
@@ -227,10 +243,15 @@ class SpeechAnalyzer: ObservableObject {
         }
         guard status == .authorized else { throw AnalysisError.notAuthorized }
 
-        let locales = [
-            Locale(identifier: "en-US"),
-            Locale(identifier: "en-GB")
-        ]
+        // ── Use the configured language, with a fallback ──────────────────
+        let primaryLocale = languageCode == "en"
+            ? Locale(identifier: "en-US")
+            : Locale(identifier: "id-ID")
+        let fallbackLocale = languageCode == "en"
+            ? Locale(identifier: "en-GB")
+            : Locale(identifier: "en-US")   // fallback if id-ID unavailable
+
+        let locales = [primaryLocale, fallbackLocale]
 
         for locale in locales {
             guard let recognizer = SFSpeechRecognizer(locale: locale),
@@ -266,14 +287,11 @@ class SpeechAnalyzer: ObservableObject {
                             ))
                         }
                     }
-                    print("✅ Transcription: '\(result.1)'")
-                    print("📝 Segments: \(result.0.count), duration input: will be set from audioData")
+                    print("✅ Transcription (\(locale.identifier)): '\(result.1)'")
                     return result
                 } catch {
                     print("❌ Attempt \(attempt) failed: \(error.localizedDescription)")
-                    if attempt < 3 {
-                        try? await Task.sleep(nanoseconds: 1_500_000_000)
-                    }
+                    if attempt < 3 { try? await Task.sleep(nanoseconds: 1_500_000_000) }
                 }
             }
         }
@@ -281,7 +299,7 @@ class SpeechAnalyzer: ObservableObject {
         print("⚠️ All transcription attempts failed")
         return ([], "")
     }
-
+    
     // MARK: - Resampling (static so Task.detached can capture it)
 
     static func resampleTo16kStatic(fileURL: URL) throws -> [Float] {
@@ -340,7 +358,7 @@ class SpeechAnalyzer: ObservableObject {
             i += windowSize / 2
         }
         let startTime = Double(bestIdx) * secPerSample
-        let window = Array(pitchSamples[bestIdx..<min(bestIdx + windowSize, pitchSamples.count)])
+        _ = Array(pitchSamples[bestIdx..<min(bestIdx + windowSize, pitchSamples.count)])
         return AudioHighlightSegment(startTime: startTime,
                                      duration: min(windowSec, recordingDuration - startTime))
     }
@@ -357,15 +375,15 @@ class SpeechAnalyzer: ObservableObject {
         guard !segments.isEmpty, recordingDuration > 0 else { return nil }
         let windowSec = min(15.0, recordingDuration)
         if recordingDuration <= windowSec {
-            let wpm = localWPM(segments: segments, start: 0, duration: recordingDuration)
+            _ = localWPM(segments: segments, start: 0, duration: recordingDuration)
             return AudioHighlightSegment(startTime: 0, duration: recordingDuration)
         }
-        var bestStart = 0.0; var bestDelta = Double.greatestFiniteMagnitude; var bestWPM = 0.0
+        var bestStart = 0.0; var bestDelta = Double.greatestFiniteMagnitude
         var t = 0.0
         while t + windowSec <= recordingDuration {
             let wpm = localWPM(segments: segments, start: t, duration: windowSec)
             let d = abs(wpm - 120)
-            if d < bestDelta { bestDelta = d; bestStart = t; bestWPM = wpm }
+            if d < bestDelta { bestDelta = d; bestStart = t}
             t += windowSec / 2
         }
         return AudioHighlightSegment(startTime: bestStart, duration: windowSec)

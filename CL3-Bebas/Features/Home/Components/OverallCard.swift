@@ -14,19 +14,19 @@ struct OverallCard: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
-                        .font(Text.Title2Regular) // Menggunakan token Headline Semibold Anda
-                        .foregroundColor(.gray)
+                        .font(Text.CustomHeadlineCard) // Menggunakan token Headline Semibold Anda
+                        .foregroundColor(Color(.systemGray2))
                     
                     Text(status)
                         .font(Text.TitleRegular)
-                        .foregroundColor(.gray)
+                        .foregroundColor(Color(.systemGray2))
                 }
                 
                 Spacer()
                 
                 // Ikon Indikator (Menggunakan SF Symbols)
                 Image(systemName: iconName)
-                    .font(.system(size: 28)) // Ukuran ikon yang proporsional
+                    .font(.system(size: 33)) // Ukuran ikon yang proporsional
                     .foregroundColor(.gray)
                     .padding(.top, 4)
             }
@@ -39,7 +39,7 @@ struct OverallCard: View {
                 .fixedSize(horizontal: false, vertical: true) // Mencegah teks terpotong secara vertikal
         }
         .padding(20) // Padding bagian dalam kartu (sesuai Figma padding 10-20)
-        .frame(width: 259, alignment: .leading) // Kartu mengambil lebar maksimal layar
+        .frame(width: 300, alignment: .leading) // Kartu mengambil lebar maksimal layar
         .background(Color(.systemBackground)) // Mengikuti Light/Dark mode secara native
         .clipShape(RoundedRectangle(cornerRadius: Radius.OverallCard))
         .overlay(

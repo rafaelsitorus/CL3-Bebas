@@ -11,7 +11,7 @@ struct HomeView: View {
     @State private var scrollPosition: Int? = 0
 
     let cardWidth: CGFloat = 320
-    let cardSpacing: CGFloat = 2
+    let cardSpacing: CGFloat = 4
 
     /// Triggered when the user taps an article card.
     /// Connected natively by the root NavigationStack.
@@ -62,6 +62,9 @@ struct HomeView: View {
                         .padding(.leading)
                         .padding(.bottom, 32)
 
+                    // Only the overall cards carousel is center-aligned
+                    // — the rest of the page keeps its original left
+                    // alignment.
                     GeometryReader { geo in
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: cardSpacing) {
@@ -81,9 +84,9 @@ struct HomeView: View {
                         .scrollTargetBehavior(.viewAligned)
                         .scrollClipDisabled()
                         .scrollPosition(id: $scrollPosition)
-                        .contentMargins(.horizontal, 2, for: .scrollContent)
+                        .contentMargins(.horizontal, (geo.size.width - cardWidth) / 2, for: .scrollContent)
                     }
-                        .frame(height: 220)
+                        .frame(height: 200)
 
                     HStack(spacing: 6) {
                         ForEach(0..<3, id: \.self) { index in

@@ -78,12 +78,16 @@ struct RecordPitchCoordinatorView: View {
             // A short, snappy transition between pages.
             .animation(.easeOut(duration: 0.18), value: viewModel.currentPage)
         }
-        // The coordinator is the single owner of the toolbar. Each
-        // inner view is NOT allowed to declare its own toolbar items,
-        // so we render exactly one back button and one confirm
-        // button regardless of which page is active.
+        // The coordinator is the single owner of the toolbar. We
+        // expose:
+        //   - a top-leading back / cancel button (always)
+        //   - a top-trailing check button ONLY on the language
+        //     selection page (the user needs it to advance to the
+        //     recording page). On the recording page we omit it
+        //     because the page already has its own on-screen finish
+        //     button (the red `square.fill` stop button in the
+        //     RecordingControlBar).
         .toolbar {
-            // Back / cancel — single button on the left.
             ToolbarItem(placement: .topBarLeading) {
                 Button {
                     onCancelled()
@@ -92,25 +96,16 @@ struct RecordPitchCoordinatorView: View {
                 }
                 .accessibilityLabel("Back")
             }
-            // Confirm / continue — single button on the right.
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    if viewModel.currentPage == .languageSelection {
+            if viewModel.currentPage == .languageSelection {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
                         viewModel.confirmLanguageSelection()
                         onLanguageConfirmed()
-                    } else {
-                        viewModel.confirmRecording()
-                        onFinished(
-                            viewModel.lastSample ?? AudioSampleData(
-                                recordingDuration: TimeInterval(viewModel.elapsedSeconds)
-                            ),
-                            viewModel.selectedLanguage == .english ? "en" : "id"
-                        )
+                    } label: {
+                        Image(systemName: "checkmark")
                     }
-                } label: {
-                    Image(systemName: "checkmark")
+                    .accessibilityLabel("Continue")
                 }
-                .accessibilityLabel("Confirm")
             }
         }
     }

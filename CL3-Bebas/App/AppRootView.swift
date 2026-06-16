@@ -108,7 +108,12 @@ struct AppRootView: View {
                 }
             }
         }
-        .toolbarBackground(.hidden, for: .bottomBar)
+        // Show the iOS native liquid-glass material behind the
+        // bottom bar. SwiftUI draws the native hover / press
+        // highlight around each tap target on top of this
+        // material, which is the same look used by Apple Health
+        // and other first-party iOS apps.
+        .toolbarBackground(.visible, for: .bottomBar)
 
         // MARK: - Recording (one-time form)
         // Presented as a full-screen cover. The inner NavigationStack
@@ -284,16 +289,29 @@ struct AppRootView: View {
         return issues
     }
 
+    /// Native bottom bar — like Apple Health / Apple Music.
+    /// Layout:
+    ///   - LEFT side (Home + History): two plain icon buttons, no
+    ///     custom circles or capsules. They sit on the iOS liquid
+    ///     glass material that the system draws behind the
+    ///     bottom-bar slot, and the system applies the native
+    ///     press / hover highlight on top automatically.
+    ///   - RIGHT side (Mic): a single circular button (floating
+    ///     action-button style) that stands out as the primary
+    ///     action — also native, sitting on the same liquid glass.
+    ///
+    /// Both the tab icons and the primary action use the SAME
+    /// `bottomBarButton(...)` helper so the bottom-bar code stays
+    /// uniform. The only difference is the `isPrimary` flag, which
+    /// turns the mic's glass treatment into a circle (so it
+    /// stands out as the primary call-to-action) versus the tab
+    /// icons' plain rectangle.
     private var bottomBarLeading: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 40) {
             bottomBarButton(
                 systemImage: "house.fill",
                 isActive: currentTab == .home
             ) {
-                // Switch to the Home peer root. If we're not already
-                // on Home, reset the path so the back chevron on
-                // any pushed detail returns to Home instead of
-                // History.
                 if currentTab != .home {
                     currentTab = .home
                     onboardingViewModel.path = NavigationPath()
@@ -303,41 +321,48 @@ struct AppRootView: View {
                 systemImage: "clock.arrow.circlepath",
                 isActive: currentTab == .history
             ) {
-                // Switch to the History peer root. Reset the path
-                // so the back chevron on any pushed detail returns
-                // to History instead of the previous root.
                 if currentTab != .history {
                     currentTab = .history
                     onboardingViewModel.path = NavigationPath()
                 }
             }
         }
-        .padding(6)
-        .glassEffect(.regular, in: Capsule())
-        
-        .frame(maxWidth: .infinity)
     }
 
     private var bottomBarTrailing: some View {
-        bottomBarButton(systemImage: AppIcon.micIcon) {
+        bottomBarButton(
+            systemImage: AppIcon.micIcon,
+            isActive: false,
+            isPrimary: true
+        ) {
             presentedRecording = true
         }
-        .glassEffect(.regular.interactive(), in: Circle())
     }
 
+    /// Unified bottom-bar button.
+    /// - `isPrimary == false` (default): plain native tab icon.
+    ///   iOS draws the native press / hover highlight on top of
+    ///   the bottom bar's liquid glass automatically.
+    /// - `isPrimary == true`: same plain native icon but with a
+    ///   circular hit-target (so the press highlight is a circle
+    ///   instead of a rectangle). The mic icon is still rendered
+    ///   on the iOS liquid glass material that the system draws
+    ///   behind the bottom-bar slot — NO extra fill / glass circle
+    ///   is added behind the icon.
     private func bottomBarButton(
         systemImage: String,
         isActive: Bool = false,
+        isPrimary: Bool = false,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(isActive ? Color.accentColor : .primary)
-                .frame(width: 44, height: 44)
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
+        let icon = Image(systemName: systemImage)
+            .font(.system(size: 18, weight: .semibold))
+            .foregroundStyle(isActive ? Color.accentColor : .primary)
+            .frame(width: 44, height: 44)
+            .contentShape(isPrimary ? AnyShape(Circle()) : AnyShape(Rectangle()))
+
+        return Button(action: action) { icon }
+            .buttonStyle(.plain)
     }
 }
 

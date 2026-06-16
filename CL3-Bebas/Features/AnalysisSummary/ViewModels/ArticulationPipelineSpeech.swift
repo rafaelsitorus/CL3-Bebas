@@ -5,13 +5,6 @@
 //  Created by Theona Arlinton on 16/06/26.
 //
 
-
-//  Alternative articulation pipeline using Speech framework confidence scores
-//  instead of the Wav2Vec2 phoneme model. Swap in SpeechAnalyzer.swift by
-//  changing the call site to use ArticulationPipelineSpeech.run() instead of
-//  ArticulationPipeline.run().
-//
-
 import Foundation
 import Speech
 
@@ -38,10 +31,19 @@ enum ArticulationPipelineSpeech {
         let variance = confidences.map { ($0 - mean) * ($0 - mean) }.reduce(0, +) / Float(confidences.count)
         let stdDev = sqrt(variance)
 
-        // Flag words more than 1 SD below session mean, with absolute floor
-        let threshold = max(mean - stdDev, 0.3)
+        // ── Language-aware absolute floor ─────────────────────────────
+        // Indonesian ASR returns structurally lower confidence (~0.3–0.5)
+        // even for correctly spoken words. English is typically 0.6–0.9.
+        // The relative threshold (mean - N*SD) catches genuine outliers;
+        // the absolute floor prevents flagging everything on low-confidence languages.
+        let absoluteFloor: Float = languageCode == "en" ? 0.35 : 0.15
 
-        print("🗣️ Confidence mean=\(String(format:"%.2f",mean)) sd=\(String(format:"%.2f",stdDev)) threshold=\(String(format:"%.2f",threshold))")
+        // Use 1.5 SD instead of 1.0 SD — only flag real outliers, not
+        // the bottom quarter of a normally-distributed session.
+        let relativeThreshold = mean - (1.5 * stdDev)
+        let threshold = max(relativeThreshold, absoluteFloor)
+
+        print("🗣️ [\(languageCode)] mean=\(String(format:"%.2f",mean)) sd=\(String(format:"%.2f",stdDev)) threshold=\(String(format:"%.2f",threshold))")
         print("🗣️ Scores: \(wordSegments.map { "\($0.substring)=\(String(format:"%.2f",$0.confidence))" }.joined(separator:", "))")
 
         let totalWords = wordSegments.count
@@ -49,8 +51,9 @@ enum ArticulationPipelineSpeech {
         let clearCount = totalWords - unclearSegments.count
         let overallScore = Float(clearCount) / Float(totalWords)
 
-        print("🗣️ \(clearCount)/\(totalWords) clear → score \(overallScore)")
+        print("🗣️ \(clearCount)/\(totalWords) clear → score \(String(format:"%.2f", overallScore))")
 
+        // ── Build issues list ─────────────────────────────────────────
         var issues: [PronunciationIssue] = []
         for (idx, seg) in segments.enumerated() {
             let clean = seg.substring
@@ -71,7 +74,7 @@ enum ArticulationPipelineSpeech {
                 word: clean,
                 timestamp: TimeInterval(seg.timestamp),
                 confidence: Float(seg.confidence),
-                suggestion: suggestion(for: clean, confidence: Float(seg.confidence)),
+                suggestion: suggestion(for: clean, confidence: Float(seg.confidence), languageCode: languageCode),
                 sentences: [PronunciationExampleSentence(
                     text: sentenceText,
                     highlightedWord: clean,
@@ -90,15 +93,17 @@ enum ArticulationPipelineSpeech {
         print("🗣️ \(deduped.count) unclear words: \(deduped.map { $0.word })")
         return (overallScore, deduped)
     }
-    private static func suggestion(for word: String, confidence: Float) -> String {
+
+    // ── Suggestion copy ───────────────────────────────────────────────
+    // Now receives languageCode so we can tailor the message if needed.
+    private static func suggestion(for word: String, confidence: Float, languageCode: String = "en") -> String {
         switch confidence {
-        case ..<0.3:
+        case ..<0.2:
             return "'\(word)' was very hard to recognise. Slow down and open your mouth more on each syllable."
-        case 0.3..<0.5:
+        case 0.2..<0.35:
             return "'\(word)' was unclear. Focus on consonants at the start and end of the word."
         default:
             return "'\(word)' could be slightly clearer. Emphasise the stressed syllable."
         }
     }
 }
-

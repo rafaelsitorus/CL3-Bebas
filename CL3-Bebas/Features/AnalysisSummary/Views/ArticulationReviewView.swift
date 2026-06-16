@@ -18,11 +18,13 @@ struct ArticulationReviewView: View {
         Int((result.articulationScore * 100).rounded())
     }
 
-    /// Scale fraction: articulation score maps directly (higher = clearer = left side).
-    /// The scale runs Clear → Unclear, so we INVERT so a high score puts the dot near 0.
     private var scaleFraction: Double {
         Double(1 - result.articulationScore).clamped(to: 0...1)
     }
+    
+    private var inaccuracyPercent: Int { Int(((1 - result.articulationScore) * 100).rounded()) }
+    private var inaccuracyFraction: Double { Double(1 - result.articulationScore) }
+
 
     // MARK: Body
 
@@ -33,10 +35,18 @@ struct ArticulationReviewView: View {
                 sectionLabel("ANALYSIS")
                 headerRow
                 AnalysisScaleView(
-                    fraction: scaleFraction,
-                    tickLabel: "\(scorePercent)%",
+                    fraction: inaccuracyFraction,
+                    ticks: [
+                        ScaleTick(fraction: 0.0,  label: "0%",  isBold: false),
+                        ScaleTick(fraction: 0.25, label: "25%", isBold: false),
+                        ScaleTick(fraction: inaccuracyFraction,
+                                  label: "\(inaccuracyPercent)%",
+                                  isBold: true),
+                        ScaleTick(fraction: 1.0,  label: "100%", isBold: false),
+                    ],
                     leadingLabel: "Clear",
-                    trailingLabel: "Unclear"
+                    trailingLabel: "Unclear",
+                    highlightRange: 0.25...1.0   // above 25% = unclear zone
                 )
                 explanationText
                 Divider()
@@ -78,10 +88,10 @@ struct ArticulationReviewView: View {
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 4) {
-                Text("\(scorePercent)%")
+                Text("\(inaccuracyPercent)%")
                     .font(Text.CustomLargeTitle)
                     .foregroundStyle(.black)
-                Text("CLARITY")
+                Text("INACCURACY")
                     .font(Text.CustomExpandedSH)
                     .foregroundStyle(.secondary)
             }

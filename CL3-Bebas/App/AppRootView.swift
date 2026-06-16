@@ -129,7 +129,8 @@ struct AppRootView: View {
                         // Dismiss cover first, then analyze
                         presentedRecording = false
                         isAnalyzing = true
-                        analyzer.languageCode = langCode  // ← fixes English-only bug
+                        analyzer.languageCode = langCode
+                        // ← fixes English-only bug
                         
                         Task {
                             do {

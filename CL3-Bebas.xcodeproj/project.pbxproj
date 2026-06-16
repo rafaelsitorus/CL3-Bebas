@@ -24,6 +24,9 @@
 				Features/AnalysisSummary/Components/.gitkeep,
 				Features/AnalysisSummary/ViewModels/.gitkeep,
 				Features/AnalysisSummary/Views/.gitkeep,
+				Features/Article/Components/.gitkeep,
+				Features/Article/ViewModels/.gitkeep,
+				Features/Article/Views/.gitkeep,
 				Features/History/Components/.gitkeep,
 				Features/History/ViewModels/.gitkeep,
 				Features/History/Views/.gitkeep,
@@ -291,7 +294,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = TYH8FTKRMK;
+				DEVELOPMENT_TEAM = 6B6C8QFG49;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Spitch requires microphone to record your voice and analyse it based on paralinguistic aspects.";
@@ -325,7 +328,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = TYH8FTKRMK;
+				DEVELOPMENT_TEAM = 6B6C8QFG49;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Spitch requires microphone to record your voice and analyse it based on paralinguistic aspects.";

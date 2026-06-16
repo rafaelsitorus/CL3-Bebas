@@ -9,4 +9,6 @@ import Foundation
 
 enum Radius {
     static let MainCard: CGFloat = 25
+    static let OverallCard: CGFloat = 15
+    static let ProgressBar: CGFloat = 3
 }

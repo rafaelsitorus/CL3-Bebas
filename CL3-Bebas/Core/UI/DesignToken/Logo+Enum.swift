@@ -31,4 +31,6 @@ enum AppIcon {
     static let onboardingIcon2 = "text.page.badge.magnifyingglass"
     static let globe = "globe"
     
+    // Analysis Card
+    static let paceGauge = "gauge.with.dots.needle.33percent"
 }

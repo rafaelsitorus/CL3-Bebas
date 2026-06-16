@@ -11,13 +11,16 @@ import SwiftUI
 struct RecordingLanguageSelectionView: View {
     @ObservedObject var viewModel: RecordPitchViewModel
     let onConfirm: (() -> Void)?
-    
+    let onCancel: (() -> Void)?
+
     init(
         viewModel: RecordPitchViewModel,
-        onConfirm: (() -> Void)? = nil
+        onConfirm: (() -> Void)? = nil,
+        onCancel: (() -> Void)? = nil
     ) {
         self.viewModel = viewModel
         self.onConfirm = onConfirm
+        self.onCancel = onCancel
     }
 
     var body: some View {
@@ -41,6 +44,17 @@ struct RecordingLanguageSelectionView: View {
         .navigationTitle("Record Pitch")
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
+            // Cancel / checklist — dismisses the one-time-form cover.
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    onCancel?()
+                } label: {
+                    Image(systemName: "checklist")
+                }
+                .accessibilityLabel("Checklist")
+            }
+
+            // Confirm — moves to the recording page.
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     viewModel.confirmLanguageSelection()
@@ -48,6 +62,7 @@ struct RecordingLanguageSelectionView: View {
                 } label: {
                     Image(systemName: "checkmark")
                 }
+                .accessibilityLabel("Continue")
             }
         }
     }
@@ -98,13 +113,17 @@ private struct LanguagePickerCard: View {
 
 // MARK: - Previews (isPreview: true → no AVFoundation, no crash)
 #Preview("English selected") {
-    RecordingLanguageSelectionView(viewModel: RecordPitchViewModel(isPreview: true))
+    NavigationStack {
+        RecordingLanguageSelectionView(viewModel: RecordPitchViewModel(isPreview: true))
+    }
 }
 
 #Preview("Bahasa selected") {
-    RecordingLanguageSelectionView(viewModel: {
-        let vm = RecordPitchViewModel(isPreview: true)
-        vm.selectedLanguage = .bahasaIndonesia
-        return vm
-    }())
+    NavigationStack {
+        RecordingLanguageSelectionView(viewModel: {
+            let vm = RecordPitchViewModel(isPreview: true)
+            vm.selectedLanguage = .bahasaIndonesia
+            return vm
+        }())
+    }
 }

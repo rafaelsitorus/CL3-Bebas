@@ -62,7 +62,7 @@ final class HistoryViewModel {
 
             RecordingHistory(
                 title: "Recording_4",
-                date: calendar.date(from: .init(year: 2026, month: 5, day: 17))!,
+                date: calendar.date(from: .init(year: 2026, month: 5, day: 16))!,
                 duration: 510,
                 issues: [
                     .intonation,

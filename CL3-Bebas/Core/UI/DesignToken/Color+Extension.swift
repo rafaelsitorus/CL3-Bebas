@@ -19,6 +19,8 @@ extension Color {
     
     static let whiteSC = Color("#FFFFFF")
     
+    static let lightGrayBC = Color("#F9F9F9")
+    
     init(_ hex: String) {
             var cleanedHex = hex.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
             

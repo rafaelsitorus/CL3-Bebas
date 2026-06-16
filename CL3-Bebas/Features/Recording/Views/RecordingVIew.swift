@@ -1,5 +1,5 @@
 //
-//  RecordingCoordinatorView.swift
+//  RecordingView.swift
 //  CL3-Bebas
 //
 //  Created by Danendra Darmawansyah on 09/06/26.
@@ -11,13 +11,16 @@ import SwiftUI
 struct RecordingView: View {
     @ObservedObject var viewModel: RecordPitchViewModel
     let onConfirm: (() -> Void)?
-    
+    let onCancel: (() -> Void)?
+
     init(
         viewModel: RecordPitchViewModel,
-        onConfirm: (() -> Void)? = nil
+        onConfirm: (() -> Void)? = nil,
+        onCancel: (() -> Void)? = nil
     ) {
         self.viewModel = viewModel
         self.onConfirm = onConfirm
+        self.onCancel = onCancel
     }
 
     var body: some View {
@@ -35,10 +38,6 @@ struct RecordingView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
 
-            // ── Mic Level Bar ───────────────────────────────────────────
-            MicLevelView(level: viewModel.micLevel)
-                .padding(.horizontal, 50)
-                .padding(.top, 28)
 
             Spacer()
 
@@ -53,6 +52,17 @@ struct RecordingView: View {
         .navigationTitle("Record Pitch")
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
+            // Cancel / back — dismisses the cover (one-time form).
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    onCancel?()
+                } label: {
+                    Image(systemName: "checklist")
+                }
+                .accessibilityLabel("Checklist")
+            }
+
+            // Confirm — finishes the recording and pushes ReviewSummary.
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     viewModel.confirmRecording()
@@ -60,6 +70,7 @@ struct RecordingView: View {
                 } label: {
                     Image(systemName: "checkmark")
                 }
+                .accessibilityLabel("Confirm")
             }
         }
         .alert("Microphone Access Denied",
@@ -103,39 +114,6 @@ struct WaveformView: View {
     }
 }
 
-// MARK: - Mic Level View
-private struct MicLevelView: View {
-    let level: Float
-
-    private let totalSegments  = 28
-    private let activeColor    = Color(red: 0.0, green: 0.48, blue: 1.0)
-    private let inactiveColor  = Color(.systemGray4)
-
-    var body: some View {
-        HStack(spacing: 15) {
-            Image(systemName: "mic.fill")
-                .font(.system(size: 15))
-                .foregroundColor(.primary)
-
-            // Fixed-size segments that stretch to fill available width
-            HStack(spacing: 3) {
-                ForEach(0..<totalSegments, id: \.self) { index in
-                    let threshold = Float(index) / Float(totalSegments)
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(level > threshold ? activeColor : inactiveColor)
-                        .frame(height: 22)
-                        .animation(.easeOut(duration: 0.07), value: level)
-                }
-            }
-
-            Text("\(Int(level * 100))%")
-                .font(Text.CustomHeadline)
-                .foregroundColor(.secondary)
-                .monospacedDigit()
-//                .frame(minWidth: 40, alignment: .trailing)
-        }
-    }
-}
 
 // MARK: - Pause / Resume Button
 private struct PauseResumeButton: View {
@@ -180,7 +158,9 @@ private struct PauseResumeButton: View {
 
 // MARK: - Previews
 #Preview("Recording – idle") {
-    RecordingView(viewModel: RecordPitchViewModel(isPreview: true))
+    NavigationStack {
+        RecordingView(viewModel: RecordPitchViewModel(isPreview: true))
+    }
 }
 
 #Preview("Recording – active") {
@@ -191,5 +171,7 @@ private struct PauseResumeButton: View {
         let t = Float(i) / 60
         return max(0.15, abs(sin(t * .pi * 5)) * 0.85 + Float.random(in: -0.1...0.1))
     }
-    return RecordingView(viewModel: vm)
+    return NavigationStack {
+        RecordingView(viewModel: vm)
+    }
 }

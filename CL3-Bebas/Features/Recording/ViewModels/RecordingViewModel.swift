@@ -3,6 +3,7 @@ import AVFoundation
 import Combine
 
 // MARK: - Language Model
+
 enum PitchLanguage: String, CaseIterable, Identifiable {
     case english         = "English"
     case bahasaIndonesia = "Bahasa Indonesia"
@@ -22,34 +23,50 @@ enum RecordPitchPage { case languageSelection, recording }
 
 // MARK: - ViewModel
 @MainActor
-final class RecordPitchViewModel: NSObject, ObservableObject {
+final class RecordPitchViewModel: ObservableObject {
 
     // MARK: Published
-    @Published var currentPage:   RecordPitchPage = .languageSelection
-    @Published var selectedLanguage: PitchLanguage = .english
-    @Published var isRecording:   Bool  = false
-    @Published var isPaused:      Bool  = false
-    @Published var elapsedSeconds: Int  = 0
-    @Published var micLevel:      Float = 0.0
-    @Published var waveformBars: [Float]
-    @Published var permissionDenied: Bool = false
-    @Published var isConfirmed:   Bool  = false
+    @Published var currentPage:      RecordPitchPage = .languageSelection
+    @Published var selectedLanguage: PitchLanguage   = .english
+    @Published var isRecording:      Bool  = false
+    @Published var isPaused:         Bool  = false
+    @Published var elapsedSeconds:   Int   = 0
+    @Published var micLevel:         Float = 0.0
+    @Published var waveformBars:     [Float]
+    @Published var permissionDenied: Bool  = false
+    @Published var isConfirmed:      Bool  = false
+
+    /// Set once `confirmRecording()` stops the underlying AudioRecorder.
+    /// Carries the captured amplitude/pitch samples + file URL for
+    /// whatever eventually builds the pace / articulation / intonation
+    /// analysis on the Review Summary screen.
+    @Published private(set) var lastSample: AudioSampleData?
 
     // MARK: Private
-    private var audioRecorder: AVAudioRecorder?
+    /// The real recording engine — AVAudioEngine based, lives in
+    /// AudioRecorder.swift. The ViewModel just drives it and mirrors
+    /// what the existing UI needs into the @Published properties above.
+    private let audioRecorder: AudioRecorder
+
     private var clockCancellable: AnyCancellable?
-    private var levelCancellable: AnyCancellable?
+    private var levelCancellable: AnyCancellable?   // preview-only ticker
+    private var bindings = Set<AnyCancellable>()
     private let maxSeconds = 300
 
-    /// When true the ViewModel never touches AVFoundation —
+    /// When true the ViewModel never touches AVFoundation / AudioRecorder —
     /// safe to use in Xcode Previews.
     let isPreview: Bool
 
     // MARK: - Init
-    init(isPreview: Bool = false) {
-        self.isPreview  = isPreview
-        self.waveformBars = Self.makeFlatBars()   // safe default; no AVFoundation
-        super.init()
+    @MainActor
+    init(isPreview: Bool = false, audioRecorder: AudioRecorder? = nil) {
+        self.isPreview     = isPreview
+        self.audioRecorder = audioRecorder ?? AudioRecorder()
+        self.waveformBars  = Self.makeFlatBars()
+
+        if !isPreview {
+            bindAudioRecorder()
+        }
     }
 
     // MARK: - Computed
@@ -74,7 +91,14 @@ final class RecordPitchViewModel: NSObject, ObservableObject {
     }
 
     func confirmRecording() {
-        teardown()
+        if isPreview {
+            cancelPreviewTimers()
+        } else {
+            lastSample = audioRecorder.stopRecording()
+            cancelClock()
+        }
+        isRecording = false
+        isPaused    = false
         isConfirmed = true
     }
 
@@ -82,126 +106,120 @@ final class RecordPitchViewModel: NSObject, ObservableObject {
     func togglePauseResume() {
         if isPreview {
             isPaused.toggle()
-            isPaused ? cancelTimers() : startPreviewPlayback()
+            isPaused ? cancelPreviewTimers() : startPreviewPlayback()
             return
         }
-        guard let rec = audioRecorder else { return }
+        guard isRecording else { return }
         if isPaused {
-            rec.record()
+            audioRecorder.resumeRecording()
             isPaused = false
-            startTimers(useMeter: true)
+            startClock()
         } else {
-            rec.pause()
+            audioRecorder.pauseRecording()
             isPaused = true
-            cancelTimers()
+            cancelClock()
         }
     }
 
-    // MARK: - Real AVFoundation
+    // MARK: - Real recording (AudioRecorder-backed)
     private func requestPermissionAndRecord() async {
-        let granted: Bool
-        if #available(iOS 17.0, *) {
-            granted = await AVAudioApplication.requestRecordPermission()
-        } else {
-            granted = await withCheckedContinuation { cont in
-                AVAudioSession.sharedInstance().requestRecordPermission {
-                    cont.resume(returning: $0)
+        let granted = await requestMicPermission()
+        guard granted else {
+            permissionDenied = true
+            return
+        }
+        audioRecorder.startRecording()
+        isRecording    = true
+        isPaused       = false
+        elapsedSeconds = 0
+        startClock()
+    }
+
+    /// Mirrors AudioRecorder's own permission switch so the ViewModel
+    /// can surface `permissionDenied` to the UI — AudioRecorder's
+    /// `startRecording()` swallows a denial silently.
+    private func requestMicPermission() async -> Bool {
+        switch AVAudioApplication.shared.recordPermission {
+        case .granted:
+            return true
+        case .denied:
+            return false
+        case .undetermined:
+            return await withCheckedContinuation { cont in
+                AVAudioApplication.requestRecordPermission { granted in
+                    cont.resume(returning: granted)
                 }
             }
+        @unknown default:
+            return false
         }
-        granted ? beginRecording() : (permissionDenied = true)
     }
 
-    private func beginRecording() {
-        do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playAndRecord, mode: .default)
-            try session.setActive(true)
-
-            let url = FileManager.default.temporaryDirectory
-                .appendingPathComponent("pitch_\(UUID().uuidString).m4a")
-
-            let settings: [String: Any] = [
-                AVFormatIDKey:            Int(kAudioFormatMPEG4AAC),
-                AVSampleRateKey:          44100,
-                AVNumberOfChannelsKey:    1,
-                AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
-            ]
-
-            audioRecorder = try AVAudioRecorder(url: url, settings: settings)
-            audioRecorder?.delegate = self
-            audioRecorder?.isMeteringEnabled = true
-            audioRecorder?.record()
-
-            isRecording    = true
-            isPaused       = false
-            elapsedSeconds = 0
-            startTimers(useMeter: true)
-        } catch {
-            print("Recording error: \(error)")
-        }
+    /// Mirrors AudioRecorder's live amplitude into the waveform the
+    /// existing RecordingView renders. AudioRecorder only emits while
+    /// its AVAudioEngine is actually running, so this naturally goes
+    /// quiet — and the waveform freezes — while paused.
+    private func bindAudioRecorder() {
+        audioRecorder.$currentAmplitude
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] rms in
+                guard let self, self.isRecording, !self.isPaused else { return }
+                let level = Self.normalizedLevel(fromRMS: rms)
+                self.micLevel = level
+                self.pushBar(level)
+            }
+            .store(in: &bindings)
     }
 
     private func teardown() {
-        audioRecorder?.stop()
-        audioRecorder = nil
-        cancelTimers()
+        if isPreview {
+            cancelPreviewTimers()
+        } else {
+            _ = audioRecorder.stopRecording()
+            cancelClock()
+        }
         isRecording = false
         isPaused    = false
     }
 
-    // MARK: - Timers
-    private func startTimers(useMeter: Bool) {
-        // 1-second clock
+    // MARK: - Clock (elapsed seconds — real recording)
+    private func startClock() {
         clockCancellable = Timer.publish(every: 1, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
                 guard let self else { return }
                 self.elapsedSeconds += 1
-                if self.elapsedSeconds >= self.maxSeconds { self.teardown() }
-            }
-
-        // ~30 fps level / waveform update
-        levelCancellable = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common)
-            .autoconnect()
-            .sink { [weak self] _ in
-                guard let self else { return }
-                if useMeter { self.sampleMeter() } else { self.tickPreview() }
+                if self.elapsedSeconds >= self.maxSeconds { self.confirmRecording() }
             }
     }
 
-    private func cancelTimers() {
+    private func cancelClock() {
+        clockCancellable?.cancel()
+        clockCancellable = nil
+    }
+
+    // MARK: - Preview simulation (unchanged — no AVFoundation)
+    private func startPreviewPlayback() {
+        isRecording = true
+        isPaused    = false
+        clockCancellable = Timer.publish(every: 1, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.elapsedSeconds += 1
+                if self.elapsedSeconds >= self.maxSeconds { self.confirmRecording() }
+            }
+        levelCancellable = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in self?.tickPreview() }
+    }
+
+    private func cancelPreviewTimers() {
         clockCancellable?.cancel(); clockCancellable = nil
         levelCancellable?.cancel(); levelCancellable = nil
     }
 
-    // MARK: - AVFoundation metering
-    private func sampleMeter() {
-        guard let rec = audioRecorder, rec.isRecording else {
-            // Decay smoothly when not recording
-            waveformBars = waveformBars.map { max(0.04, $0 * 0.80) }
-            micLevel     = max(0, micLevel * 0.80)
-            return
-        }
-        rec.updateMeters()
-
-        // Map dB (-60…0) → 0…1, boosted so a quiet voice reads ~0.4–0.6
-        let db   = rec.averagePower(forChannel: 0)
-        let norm = max(0.0, min(1.0, (db + 55.0) / 55.0))
-        micLevel = norm
-
-        pushBar(norm)
-    }
-
-    // MARK: - Preview simulation
-    private func startPreviewPlayback() {
-        isRecording = true
-        isPaused    = false
-        startTimers(useMeter: false)
-    }
-
     private func tickPreview() {
-        // Simulate a person speaking: bursts + silences
         let speaking = Float.random(in: 0...1) > 0.25
         let base:  Float = speaking ? Float.random(in: 0.35...0.80) : Float.random(in: 0.04...0.15)
         let spike: Float = speaking && Bool.random() ? Float.random(in: 0...0.20) : 0
@@ -219,16 +237,19 @@ final class RecordPitchViewModel: NSObject, ObservableObject {
         waveformBars = bars
     }
 
+    // MARK: - Level mapping
+    /// AudioRecorder publishes raw RMS amplitude (linear, ~0...1).
+    /// Convert to dB and normalize the same way the previous
+    /// AVAudioRecorder-based meter did, so the waveform "feel" matches.
+    private static func normalizedLevel(fromRMS rms: Float) -> Float {
+        guard rms > 0 else { return 0.04 }
+        let db   = 20 * log10(rms)
+        let norm = (db + 55.0) / 55.0
+        return max(0.04, min(1.0, norm))
+    }
+
     // MARK: - Static helpers
     static func makeFlatBars() -> [Float] {
-        // Low, uneven idle state — looks like silence on a real recorder
         (0..<60).map { _ in Float.random(in: 0.04...0.10) }
-    }
-}
-
-// MARK: - AVAudioRecorderDelegate
-extension RecordPitchViewModel: AVAudioRecorderDelegate {
-    nonisolated func audioRecorderDidFinishRecording(_ recorder: AVAudioRecorder, successfully _: Bool) {
-        Task { @MainActor in isRecording = false }
     }
 }

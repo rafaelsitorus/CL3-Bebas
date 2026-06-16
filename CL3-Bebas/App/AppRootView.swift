@@ -64,8 +64,6 @@ struct AppRootView: View {
     /// Identifies the active peer root page. Switching the tab
     /// replaces the NavigationStack's root with the new page.
     @State private var currentTab: AppTab = .home
-    @State private var isAnalyzing: Bool = false
-    @State private var analyzer = SpeechAnalyzer()
 
 
     var body: some View {
@@ -127,46 +125,14 @@ struct AppRootView: View {
             NavigationStack {
                 RecordPitchCoordinatorView(
                     onLanguageConfirmed: {},
-                    onFinished: { audioData, langCode in
-                        // Dismiss cover first, then analyze
+                    onFinished: { result in
                         presentedRecording = false
-                        isAnalyzing = true
-                        analyzer.languageCode = langCode
-                        // ← fixes English-only bug
-                        
-                        Task {
-                            do {
-                                let result = try await analyzer.analyze(audioData: audioData)
-                                onboardingViewModel.path.append(AppRoute.reviewSummary(result))
-                            } catch {
-                                print("Analysis failed: \(error)")
-                            }
-                            isAnalyzing = false
-                        }
+                        onboardingViewModel.path.append(AppRoute.reviewSummary(result))
                     },
                     onCancelled: {
                         presentedRecording = false
                     }
                 )
-            }
-        }
-        // Show a loading overlay while analysis runs
-        .overlay {
-            if isAnalyzing {
-                ZStack {
-                    Color.black.opacity(0.4).ignoresSafeArea()
-                    VStack(spacing: 16) {
-                        ProgressView()
-                            .progressViewStyle(.circular)
-                            .tint(.white)
-                            .scaleEffect(1.4)
-                        Text("Analysing your pitch…")
-                            .foregroundStyle(.white)
-                            .font(.system(size: 15, weight: .medium))
-                    }
-                    .padding(32)
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
-                }
             }
         }
     }

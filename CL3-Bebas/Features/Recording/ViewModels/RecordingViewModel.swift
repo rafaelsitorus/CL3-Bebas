@@ -19,7 +19,7 @@ enum PitchLanguage: String, CaseIterable, Identifiable {
 }
 
 // MARK: - Page Enum
-enum RecordPitchPage { case languageSelection, recording }
+enum RecordPitchPage { case languageSelection, recording, analyzing }
 
 // MARK: - ViewModel
 @MainActor

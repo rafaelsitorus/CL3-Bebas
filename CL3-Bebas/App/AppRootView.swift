@@ -285,6 +285,11 @@ struct AppRootView: View {
     }
 
     // MARK: - Bottom Bar Buttons
+    
+    private var shouldShowBottomBar: Bool {
+        onboardingComplete &&
+        onboardingViewModel.path.isEmpty
+    }
 
     private var bottomBarLeading: some View {
         HStack(spacing: 6) {
@@ -316,6 +321,8 @@ struct AppRootView: View {
         }
         .padding(6)
         .glassEffect(.regular, in: Capsule())
+        
+        .frame(maxWidth: .infinity)
     }
 
     private var bottomBarTrailing: some View {

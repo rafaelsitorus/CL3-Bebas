@@ -70,7 +70,7 @@ struct RecordPitchCoordinatorView: View {
                             )
                         }
                     },
-                    onCancel: onCancelled
+                    onCancel: { viewModel.goBack() }
                 )
                 .opacity(viewModel.currentPage == .recording ? 1 : 0)
                 .allowsHitTesting(viewModel.currentPage == .recording)

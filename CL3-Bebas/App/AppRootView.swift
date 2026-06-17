@@ -86,6 +86,7 @@ struct AppRootView: View {
                     destination(for: route)
                 }
         }
+        .background(Color.lightGrayBC)
         // Inject the history store into the environment so child
         // views (recording flow, history) can read/write to it.
         .environmentObject(historyStore)

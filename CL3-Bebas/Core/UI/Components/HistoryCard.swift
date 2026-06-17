@@ -162,6 +162,6 @@ struct HistoryCardLink: View {
                 Divider().padding(.leading, 20)
             }
         }
-        .background(Color(.systemGray6))
+        .background(Color.lightGrayBC)
     }
 }

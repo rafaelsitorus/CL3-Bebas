@@ -127,7 +127,6 @@ struct HistoryView: View {
                 .padding(.top, 12)
             }
         }
-        .background(Color(.systemGray6))
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
@@ -242,7 +241,10 @@ struct HistoryView: View {
 }
 
 #Preview {
-    NavigationStack {
+    let mockHistoryStore = HistoryStore()
+    
+    return NavigationStack {
         HistoryView()
+            .environmentObject(mockHistoryStore)
     }
 }

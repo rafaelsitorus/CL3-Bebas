@@ -125,7 +125,6 @@ struct HomeView: View {
                 }
             }
         }
-        .background(Color.lightGrayBC)
     }
 }
 
@@ -137,7 +136,7 @@ struct PartitionedProgressBar: View {
     let labels = ["Weak", "Developing", "Strong", "Excellent"]
     
     var body: some View {
-        HStack(spacing: 6) { // Jarak antar partisi
+        HStack(spacing: 3) { // Jarak antar partisi
             ForEach(0..<4, id: \.self) { index in
                 VStack(alignment: .leading, spacing: 8) {
                     // Bagian Bar (Batang Progress)
@@ -148,10 +147,10 @@ struct PartitionedProgressBar: View {
                         let fillRatio = max(0, min(1, (value - segmentStart) / segmentValue))
                         
                         ZStack(alignment: .leading) {
-                            RoundedRectangle(cornerRadius: 4)
+                            RoundedRectangle(cornerRadius: 2.5)
                                 .fill(Color.gray.opacity(0.3))
                             
-                            RoundedRectangle(cornerRadius: 4)
+                            RoundedRectangle(cornerRadius: 2.5)
                                 .fill(Color.primary)
                                 .frame(width: geo.size.width * CGFloat(fillRatio))
                         }

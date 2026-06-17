@@ -9,19 +9,17 @@ import SwiftUI
 
 struct RecordPitchCoordinatorView: View {
 
-    // Change signature: onFinished now delivers the analysis result
-    let onFinished: (AnalysisResult) -> Void
+    // Change signature: onFinished now delivers the captured audio + language
+    let onFinished: (AudioSampleData, String) -> Void
     let onLanguageConfirmed: () -> Void
     let onCancelled: () -> Void
 
     @StateObject private var viewModel: RecordPitchViewModel
-    @State private var analyzer = SpeechAnalyzer()
-    @State private var analysisError: String?
 
     init(
         isPreview: Bool = false,
         onLanguageConfirmed: @escaping () -> Void = {},
-        onFinished: @escaping (AnalysisResult) -> Void = { _ in },
+        onFinished: @escaping (AudioSampleData, String) -> Void = { _, _ in },
         onCancelled: @escaping () -> Void = {}
     ) {
         self.onLanguageConfirmed = onLanguageConfirmed
@@ -31,58 +29,83 @@ struct RecordPitchCoordinatorView: View {
     }
 
     var body: some View {
-        ZStack {
-            switch viewModel.currentPage {
-            case .languageSelection:
+        // The coordinator owns its own NavigationStack so the inner
+        // views can declare navigation titles. The single toolbar
+        // block below renders EXACTLY ONE back button and EXACTLY
+        // ONE confirm button, no matter which inner page is
+        // currently active. (Previously each inner view declared
+        // its own toolbar and a ZStack mounted both, which produced
+        // duplicate buttons.)
+        NavigationStack {
+            ZStack {
                 RecordingLanguageSelectionView(
                     viewModel: viewModel,
                     onConfirm: { onLanguageConfirmed() },
                     onCancel: { onCancelled() }
                 )
-                .transition(.asymmetric(insertion: .move(edge: .leading), removal: .move(edge: .leading)))
+                .opacity(viewModel.currentPage == .languageSelection ? 1 : 0)
+                .allowsHitTesting(viewModel.currentPage == .languageSelection)
 
-            case .recording:
                 RecordingView(
                     viewModel: viewModel,
                     onConfirm: {
-                        // Move to analyzing page — analysis starts in .onAppear
-                        viewModel.currentPage = .analyzing
+                        // We do not block on the captured audio here —
+                        // the host just needs the language code to
+                        // build a dummy result while the real
+                        // analyzer is being wired up.
+                        let langCode = viewModel.selectedLanguage == .english ? "en" : "id"
+                        if let sample = viewModel.lastSample {
+                            onFinished(sample, langCode)
+                        } else {
+                            // lastSample may be nil if the user
+                            // tapped confirm before the recorder
+                            // produced any samples. Pass an empty
+                            // sample — the host can still build a
+                            // dummy result.
+                            onFinished(
+                                AudioSampleData(
+                                    recordingDuration: TimeInterval(viewModel.elapsedSeconds)
+                                ),
+                                langCode
+                            )
+                        }
                     },
                     onCancel: { viewModel.goBack() }
                 )
-                .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .trailing)))
-
-            case .analyzing:
-                AnalyzingRecordingView()
-                    .transition(.opacity)
-                    .onAppear { startAnalysis() }
+                .opacity(viewModel.currentPage == .recording ? 1 : 0)
+                .allowsHitTesting(viewModel.currentPage == .recording)
             }
+            // A short, snappy transition between pages.
+            .animation(.easeOut(duration: 0.18), value: viewModel.currentPage)
         }
-        .animation(.easeInOut(duration: 0.28), value: viewModel.currentPage)
-        .alert("Analysis Failed", isPresented: .init(
-            get: { analysisError != nil },
-            set: { if !$0 { analysisError = nil } }
-        )) {
-            Button("Retry") { startAnalysis() }
-            Button("Cancel", role: .cancel) { onCancelled() }
-        } message: {
-            Text(analysisError ?? "An unknown error occurred.")
-        }
-    }
-
-    // MARK: - Analysis
-
-    private func startAnalysis() {
-        guard let sample = viewModel.lastSample else { return }
-        let langCode = viewModel.selectedLanguage == .english ? "en" : "id"
-        analyzer.languageCode = langCode
-
-        Task {
-            do {
-                let result = try await analyzer.analyze(audioData: sample)
-                onFinished(result)
-            } catch {
-                analysisError = error.localizedDescription
+        // The coordinator is the single owner of the toolbar. We
+        // expose:
+        //   - a top-leading back / cancel button (always)
+        //   - a top-trailing check button ONLY on the language
+        //     selection page (the user needs it to advance to the
+        //     recording page). On the recording page we omit it
+        //     because the page already has its own on-screen finish
+        //     button (the red `square.fill` stop button in the
+        //     RecordingControlBar).
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    onCancelled()
+                } label: {
+                    Image(systemName: "chevron.left")
+                }
+                .accessibilityLabel("Back")
+            }
+            if viewModel.currentPage == .languageSelection {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        viewModel.confirmLanguageSelection()
+                        onLanguageConfirmed()
+                    } label: {
+                        Image(systemName: "checkmark")
+                    }
+                    .accessibilityLabel("Continue")
+                }
             }
         }
     }
@@ -101,5 +124,7 @@ struct RecordPitchCoordinatorView: View {
         let t = Float(i) / 60
         return max(0.12, abs(sin(t * .pi * 6)) * 0.88 + Float.random(in: -0.08...0.08))
     }
-    return RecordingView(viewModel: vm)
+    return NavigationStack {
+        RecordingView(viewModel: vm)
+    }
 }

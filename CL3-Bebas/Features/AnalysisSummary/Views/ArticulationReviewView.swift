@@ -12,8 +12,6 @@ struct ArticulationReviewView: View {
 
     // MARK: Private
 
-    @Environment(\.dismiss) private var dismiss
-
     private var scorePercent: Int {
         Int((result.articulationScore * 100).rounded())
     }
@@ -31,7 +29,6 @@ struct ArticulationReviewView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
-                backButton
                 sectionLabel("ANALYSIS")
                 headerRow
                 AnalysisScaleView(
@@ -58,22 +55,15 @@ struct ArticulationReviewView: View {
             .padding(.horizontal, 20)
         }
         .background(Color(white: 0.96).ignoresSafeArea())
-        .navigationBarHidden(true)
-    }
-
-    // MARK: Sub-views
-
-    private var backButton: some View {
-        Button { dismiss() } label: {
-            Image(systemName: "chevron.left")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(.black)
-                .frame(width: 36, height: 36)
-                .background(Color.white)
-                .clipShape(Circle())
-                .overlay(Circle().stroke(Color.black.opacity(0.06)))
-        }
-        .padding(.top, 8)
+        // Native back chevron from the enclosing NavigationStack.
+        .navigationTitle("Articulation")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Color(white: 0.96), for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .tint(.black)
+        // Hide the bottom bar (Home / History / Mic) on the review
+        // screens so only the native back chevron is available.
+        .toolbar(.hidden, for: .bottomBar)
     }
 
     private var headerRow: some View {

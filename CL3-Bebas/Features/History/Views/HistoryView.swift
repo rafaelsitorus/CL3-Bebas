@@ -9,7 +9,7 @@ import SwiftUI
 
 struct HistoryView: View {
 
-    @State private var viewModel    = HistoryViewModel()
+    @EnvironmentObject private var historyStore: HistoryStore
     @State private var selectedFilter: FilterOption = .all
     @State private var searchText   = ""
     @State private var isSearchActive = false
@@ -32,7 +32,7 @@ struct HistoryView: View {
     }
 
     var filteredRecordings: [RecordingHistory] {
-        var result = viewModel.recordings
+        var result = historyStore.recordings
 
         // 1. Filter by category
         if selectedFilter != .all {
@@ -127,7 +127,6 @@ struct HistoryView: View {
                 .padding(.top, 12)
             }
         }
-        .background(Color(.systemGray6))
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
@@ -242,7 +241,10 @@ struct HistoryView: View {
 }
 
 #Preview {
-    NavigationStack {
+    let mockHistoryStore = HistoryStore()
+    
+    return NavigationStack {
         HistoryView()
+            .environmentObject(mockHistoryStore)
     }
 }

@@ -11,7 +11,7 @@ struct HomeView: View {
     @State private var scrollPosition: Int? = 0
 
     let cardWidth: CGFloat = 320
-    let cardSpacing: CGFloat = 2
+    let cardSpacing: CGFloat = 4
 
     /// Triggered when the user taps an article card.
     /// Connected natively by the root NavigationStack.
@@ -46,14 +46,7 @@ struct HomeView: View {
                         }
                     }
 
-                    ProgressView(value: 53, total: 100)
-                        .progressViewStyle(.linear)
-                        .tint(.primary)
-                        .background(Color.gray.opacity(0.2))
-                        .scaleEffect(x: 1, y: 2.5, anchor: .center)
-                        .frame(height: 8)
-                        .clipShape(RoundedRectangle(cornerRadius: Radius.ProgressBar))
-                        .padding(.horizontal)
+                    PartitionedProgressBar(value: 53)
 
                     Spacer()
 
@@ -62,6 +55,9 @@ struct HomeView: View {
                         .padding(.leading)
                         .padding(.bottom, 32)
 
+                    // Only the overall cards carousel is center-aligned
+                    // — the rest of the page keeps its original left
+                    // alignment.
                     GeometryReader { geo in
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: cardSpacing) {
@@ -81,9 +77,9 @@ struct HomeView: View {
                         .scrollTargetBehavior(.viewAligned)
                         .scrollClipDisabled()
                         .scrollPosition(id: $scrollPosition)
-                        .contentMargins(.horizontal, 2, for: .scrollContent)
+                        .contentMargins(.horizontal, (geo.size.width - cardWidth) / 2, for: .scrollContent)
                     }
-                        .frame(height: 220)
+                        .frame(height: 200)
 
                     HStack(spacing: 6) {
                         ForEach(0..<3, id: \.self) { index in
@@ -129,7 +125,48 @@ struct HomeView: View {
                 }
             }
         }
-        .background(Color.lightGrayBC)
+    }
+}
+
+struct PartitionedProgressBar: View {
+    var value: Double
+    var total: Double = 100
+    
+    // Label untuk masing-masing partisi
+    let labels = ["Weak", "Developing", "Strong", "Excellent"]
+    
+    var body: some View {
+        HStack(spacing: 3) { // Jarak antar partisi
+            ForEach(0..<4, id: \.self) { index in
+                VStack(alignment: .leading, spacing: 8) {
+                    // Bagian Bar (Batang Progress)
+                    GeometryReader { geo in
+                        let segmentValue = total / 4.0
+                        let segmentStart = Double(index) * segmentValue
+                        
+                        let fillRatio = max(0, min(1, (value - segmentStart) / segmentValue))
+                        
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 2.5)
+                                .fill(Color.gray.opacity(0.3))
+                            
+                            RoundedRectangle(cornerRadius: 2.5)
+                                .fill(Color.primary)
+                                .frame(width: geo.size.width * CGFloat(fillRatio))
+                        }
+                    }
+                    .frame(height: 8)
+                    
+                    // Bagian Label Teks
+                    Text(labels[index])
+                        .font(.caption)
+                        .foregroundColor(.primary)
+                        // MODIFIKASI DI SINI: Jika index ke-3 (Excellent), rata kanan. Selain itu rata kiri.
+                        .frame(maxWidth: .infinity, alignment: (index == 2 || index == 3) ? .trailing : .leading)
+                }
+            }
+        }
+        .padding(.horizontal)
     }
 }
 

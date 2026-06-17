@@ -16,9 +16,6 @@ struct UnclearWordsView: View {
     let issues: [PronunciationIssue]
     let audioFileURL: URL?
 
-
-    @Environment(\.dismiss) private var dismiss
-
     /// Only one row expanded at a time. Defaults to the first word.
     @State private var expandedWord: String?
 
@@ -35,7 +32,6 @@ struct UnclearWordsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                backButton
                 sectionLabel("UNCLEAR WORDS")
                 Text("These words were pronounced unclear throughout your speech, which may affect message clarity.")
                     .font(Text.CustomBody)
@@ -48,22 +44,15 @@ struct UnclearWordsView: View {
             .padding(.horizontal, 20)
         }
         .background(Color(white: 0.96).ignoresSafeArea())
-        .navigationBarHidden(true)
-    }
-
-    // MARK: Sub-views
-
-    private var backButton: some View {
-        Button { dismiss() } label: {
-            Image(systemName: "chevron.left")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(.black)
-                .frame(width: 36, height: 36)
-                .background(Color.white)
-                .clipShape(Circle())
-                .overlay(Circle().stroke(Color.black.opacity(0.06)))
-        }
-        .padding(.top, 8)
+        // Native back chevron from the enclosing NavigationStack.
+        .navigationTitle("Unclear Words")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Color(white: 0.96), for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .tint(.black)
+        // Hide the bottom bar (Home / History / Mic) on the review
+        // screens so only the native back chevron is available.
+        .toolbar(.hidden, for: .bottomBar)
     }
 
     @ViewBuilder

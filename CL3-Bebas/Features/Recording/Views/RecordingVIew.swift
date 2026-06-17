@@ -79,18 +79,9 @@ struct RecordingView: View {
         }
         .background(Color(.systemBackground))
         .navigationBarBackButtonHidden(true)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    onCancel?()
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(.primary)
-                }
-                .accessibilityLabel("Back")
-            }
-        }
+        // No toolbar items declared here — the recording
+        // coordinator owns the single toolbar (one back button)
+        // so we don't end up with duplicate buttons.
         // ── Alerts ─────────────────────────────────────────────────────
         .alert("Microphone Access Denied",
                isPresented: $viewModel.permissionDenied) {

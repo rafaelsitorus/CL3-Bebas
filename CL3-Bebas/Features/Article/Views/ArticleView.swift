@@ -55,7 +55,6 @@ struct ArticleView: View {
                 }
             }
         }
-        .background(Color.lightGrayBC)
         // The native navigation title + back chevron come from the
         // enclosing NavigationStack. We expose the article headline
         // as the large title so it reads naturally when pushed from

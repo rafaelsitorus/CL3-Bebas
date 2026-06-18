@@ -2,14 +2,30 @@
 //  HistoryView.swift
 //  CL3-Bebas
 //
+//  Reads persisted `RecordingHistoryModel` rows straight from
+//  SwiftData via `@Query`, so the list always reflects what the
+//  user has actually recorded. The previous in-memory
+//  `HistoryStore.recordings` (and its hard-coded dummy seed) are
+//  gone — `HistoryStore` now only owns the *write* side of the
+//  history feature (see `HistoryStore.save(...)`).
+//
 //  Created by Danendra Darmawansyah on 08/06/26.
 //
 
 import SwiftUI
+import SwiftData
 
 struct HistoryView: View {
 
-    @EnvironmentObject private var historyStore: HistoryStore
+    /// All `RecordingHistoryModel` rows, newest first. The query
+    /// re-runs automatically when the `ModelContext` is mutated
+    /// (e.g. after `HistoryStore.save(...)` is called from
+    /// `AppRootView`), so the list updates as soon as a new
+    /// recording is inserted — no manual `objectWillChange.send()`
+    /// needed.
+    @Query(sort: [SortDescriptor(\RecordingHistoryModel.date, order: .reverse)])
+    private var recordings: [RecordingHistoryModel]
+
     @State private var selectedFilter: FilterOption = .all
     @State private var searchText   = ""
     @State private var isSearchActive = false
@@ -36,8 +52,10 @@ struct HistoryView: View {
         case oldest = "Oldest First"
     }
 
-    var filteredRecordings: [RecordingHistory] {
-        var result = historyStore.recordings
+    /// View-side filter / search / sort pipeline. Runs over the
+    /// `@Query` results so the SwiftData store stays untouched.
+    private var filteredRecordings: [RecordingHistoryModel] {
+        var result = recordings
 
         // 1. Filter by category
         if selectedFilter != .all {
@@ -67,28 +85,6 @@ struct HistoryView: View {
         return result
     }
 
-    /// Default analysis result used as a placeholder until each
-    /// recording carries its own real metrics.
-    private var defaultResult: AnalysisResult {
-        AnalysisResult(
-            transcription: "",
-            duration: 0,
-            wordsPerMinute: 0,
-            paceLabel: "Too Fast",
-            averageAmplitudeDB: -20,
-            volumeLabel: "Good",
-            pitchSamples: [],
-            pitchVariance: 0,
-            intonationLabel: "Varied",
-            amplitudeSamples: [],
-            articulationScore: 0.43,
-            pronunciationIssues: [],
-            audioFileURL: nil,
-            intonationHighlight: nil,
-            paceHighlight: nil
-        )
-    }
-
     init(onRecordingTap: @escaping (AnalysisResult) -> Void = { _ in }) {
         self.onRecordingTap = onRecordingTap
     }
@@ -109,12 +105,30 @@ struct HistoryView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
 
+                // MARK: – Empty state
+                // First-launch experience: instead of seeding dummy
+                // rows, we just tell the user to record their first
+                // pitch. The empty state disappears as soon as one
+                // row is inserted via `HistoryStore.save(...)`.
+                if filteredRecordings.isEmpty {
+                    VStack(spacing: 8) {
+                        Image(systemName: "waveform.circle")
+                            .font(.system(size: 44, weight: .regular))
+                            .foregroundStyle(.secondary)
+                        Text("No recordings yet")
+                            .font(Text.CustomHeadline)
+                            .foregroundStyle(.primary)
+                        Text("Tap the mic to record your first pitch — it will appear here automatically.")
+                            .font(Text.CustomFootnote)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 40)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 80)
+                }
+
                 // MARK: – Search Bar
-                // The search bar only renders when `isSearchActive`
-                // is true (toggled by the magnifier toolbar button).
-                // It is bound to `searchText` so the existing
-                // `filteredRecordings` computed property filters the
-                // list live as the user types.
                 if isSearchActive {
                     HStack(spacing: 8) {
                         Image(systemName: "magnifyingglass")
@@ -163,7 +177,7 @@ struct HistoryView: View {
                                 date: recording.date,
                                 duration: recording.duration,
                                 issues: recording.issues,
-                                onTap: { onRecordingTap(defaultResult) }
+                                onTap: { onRecordingTap(recording.toAnalysisResult()) }
                             )
                             Divider().padding(.leading, 20)
                         }
@@ -180,12 +194,6 @@ struct HistoryView: View {
             // MARK: – Tombol Search (terpisah)
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    // Show the search bar and pop the keyboard up
-                    // in the same transaction. We use `DispatchQueue`
-                    // because toggling `isSearchActive` and focusing
-                    // the field in the same view-update pass can race
-                    // — the focus call lands before the field is in
-                    // the view hierarchy, so iOS silently drops it.
                     isSearchActive = true
                     DispatchQueue.main.async {
                         isSearchFieldFocused = true
@@ -293,10 +301,62 @@ struct HistoryView: View {
 }
 
 #Preview {
-    let mockHistoryStore = HistoryStore()
+    // In-memory SwiftData container so the preview renders without
+    // touching the on-disk store. We seed two rows so the list
+    // previews against real data.
+    let config = ModelConfiguration(isStoredInMemoryOnly: true)
+    let container = try! ModelContainer(
+        for: RecordingHistoryModel.self,
+        configurations: config
+    )
+    let context = ModelContext(container)
+    let now = Date()
+    context.insert(RecordingHistoryModel(
+        title: "Recording 1",
+        date: now,
+        duration: 510,
+        issues: [.intonation, .articulation, .pace],
+        languageCode: "en",
+        transcription: "Sample pitch transcript",
+        wordsPerMinute: 145,
+        paceLabel: "Ideal",
+        averageAmplitudeDB: -20,
+        volumeLabel: "Good",
+        pitchSamples: (0..<100).map { _ in Float.random(in: 80...300) },
+        pitchVariance: 600,
+        intonationLabel: "Varied",
+        amplitudeSamples: (0..<100).map { _ in Float.random(in: -45 ... -10) },
+        articulationScore: 0.78,
+        pronunciationIssues: [],
+        intonationHighlight: AudioHighlightSegment(startTime: 4, duration: 10),
+        paceHighlight: AudioHighlightSegment(startTime: 30, duration: 15),
+        audioFileRelativePath: nil
+    ))
+    context.insert(RecordingHistoryModel(
+        title: "Recording 2",
+        date: now.addingTimeInterval(-86_400),
+        duration: 320,
+        issues: [.volume],
+        languageCode: "id",
+        transcription: "Halo semua",
+        wordsPerMinute: 110,
+        paceLabel: "Slow",
+        averageAmplitudeDB: -45,
+        volumeLabel: "Too Quiet",
+        pitchSamples: (0..<80).map { _ in Float.random(in: 100...200) },
+        pitchVariance: 200,
+        intonationLabel: "Flat",
+        amplitudeSamples: (0..<80).map { _ in Float.random(in: -60 ... -40) },
+        articulationScore: 0.62,
+        pronunciationIssues: [],
+        intonationHighlight: nil,
+        paceHighlight: nil,
+        audioFileRelativePath: nil
+    ))
+    try? context.save()
 
     return NavigationStack {
         HistoryView()
-            .environmentObject(mockHistoryStore)
+            .modelContainer(container)
     }
 }

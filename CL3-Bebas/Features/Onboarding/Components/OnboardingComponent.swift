@@ -163,50 +163,6 @@ struct WaveformVisualizer: View {
     }
 }
 
-// MARK: - Analysis Metric Row (Results screen)
-
-struct MetricRow: View {
-    let icon: String
-    let iconColor: Color
-    let label: String
-    let value: String
-
-    var body: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(iconColor.opacity(0.12))
-                    .frame(width: 40, height: 40)
-                Image(systemName: icon)
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(iconColor)
-            }
-            VStack(alignment: .leading, spacing: 2) {
-                Text(label)
-                    .font(.system(size: 12))
-                    .foregroundColor(Color.GreyAccentSC)
-                Text(value)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.primary)
-            }
-            Spacer()
-            Image(systemName: "chevron.right")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundColor(Color.GreyAccentSC)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(.systemBackground))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(Color(.systemGray5), lineWidth: 1)
-        )
-    }
-}
-
 // MARK: - Pitch Script Text (highlighted bold lead + normal body)
 
 struct PitchScriptText: View {

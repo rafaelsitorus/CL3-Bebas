@@ -28,9 +28,10 @@ struct LanguageSelectionView: View {
             AppIconTile(systemName: AppIcon.globe, size: 80, iconSize: 34)
                 .padding(.bottom, 24)
 
-            Text("Choose your Language")
+            Text("Select a Language to Try")
                 .font(Text.CustomLargeTitle)
                 .padding(.bottom, 24)
+                .padding(.horizontal, 24)
 
     
 
@@ -48,7 +49,7 @@ struct LanguageSelectionView: View {
             
             Spacer().frame(height: 36)
             
-            Text("Select the language you'll use so the system can provide the most precise feedback for your pitch delivery")
+            Text("Let's start with one language for your first recording. This only affects your first speech exercise. You can switch languages later.")
                 .font(Text.CustomHeadline)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)

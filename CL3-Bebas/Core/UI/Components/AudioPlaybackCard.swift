@@ -25,7 +25,7 @@ struct AudioPlaybackCard: View {
 
             // Play / Pause button
             Button(action: playPauseAction) {
-                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                Image(systemName: isPlaying ? AppIcon.pauseIcon : AppIcon.playIcon)
                     .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(.white)
                     .frame(width: 30, height: 30)

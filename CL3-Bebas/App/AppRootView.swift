@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 // MARK: - App Route
 // Single source of truth for the main NavigationStack.
@@ -344,11 +345,12 @@ struct AppRootView: View {
     /// stands out as the primary call-to-action) versus the tab
     /// icons' plain rectangle.
     private var bottomBarLeading: some View {
-        HStack(spacing: 40) {
+        HStack(spacing: 10) {
             bottomBarButton(
                 systemImage: "house.fill",
                 isActive: currentTab == .home
-            ) {
+            )
+            {
                 if currentTab != .home {
                     currentTab = .home
                     onboardingViewModel.path = NavigationPath()
@@ -364,6 +366,7 @@ struct AppRootView: View {
                 }
             }
         }
+        .padding(.horizontal, 10)
     }
 
     private var bottomBarTrailing: some View {

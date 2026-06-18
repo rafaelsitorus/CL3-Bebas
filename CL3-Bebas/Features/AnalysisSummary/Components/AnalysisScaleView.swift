@@ -88,12 +88,12 @@ struct AnalysisScaleView: View {
     private var endpointLabels: some View {
         HStack {
             Text(leadingLabel)
-                .font(.caption)
+                .font(Text.CustomCaption)
                 .fontWeight(activeEndpoint == .leading ? .bold : .regular)
                 .foregroundStyle(activeEndpoint == .leading ? dotColor : Color.secondary)
             Spacer()
             Text(trailingLabel)
-                .font(.caption)
+                .font(Text.CustomCaption)
                 .fontWeight(activeEndpoint == .trailing ? .bold : .regular)
                 .foregroundStyle(activeEndpoint == .trailing ? dotColor : Color.secondary)
         }

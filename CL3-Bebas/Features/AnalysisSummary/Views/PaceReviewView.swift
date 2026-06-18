@@ -20,15 +20,28 @@ struct PaceReviewView: View {
                 AnalysisScaleView(
                     fraction: paceCurrentFraction,
                     ticks: [
-                        ScaleTick(fraction: 0.0,                label: "60",                          isBold: false),
-                        ScaleTick(fraction: 0.5,                label: "130",                         isBold: false),
-                        ScaleTick(fraction: 0.714,              label: "160",                         isBold: false),
-                        ScaleTick(fraction: paceCurrentFraction, label: "\(Int(result.wordsPerMinute))", isBold: true),
-                        ScaleTick(fraction: 1.0,                label: "200",                         isBold: false),
+                        ScaleTick(fraction: 0.0,
+                                  label: "60",
+                                  isBold: false),
+                        ScaleTick(fraction: 0.5,
+                                  label: "130",
+                                  isBold: false),
+                        ScaleTick(fraction: 0.714,
+                                  label: "160",
+                                  isBold: false),
+                        ScaleTick(fraction: paceCurrentFraction,
+                                  label: "\(Int(result.wordsPerMinute))",
+                                  isBold: true),
+                        ScaleTick(fraction: 1.0,
+                                  label: "200",
+                                  isBold: false),
                     ],
                     leadingLabel: "Too Slow",
                     trailingLabel: result.wordsPerMinute > 160 ? "Too Fast" : "Normal",
-                    highlightRange: 0.5...0.714
+                    highlightRange: 0.5...0.714,
+                    highlightColor: Color.BarGreenAnalysis,
+                    dotColor: paceColor,
+                    activeEndpoint: paceActiveEndpoint
                 )
                 explanationText
                 Divider()
@@ -65,11 +78,19 @@ struct PaceReviewView: View {
             VStack(alignment: .trailing, spacing: 4) {
                 Text(String(format: "%.0f", result.wordsPerMinute))
                     .font(Text.CustomLargeTitle)
-                    .foregroundStyle(.black)
+                    .foregroundStyle(paceColor)
                 Text("WPM")
-                    .font(Text.CustomExpandedSH)
+                    .font(Text.CustomFootnote)
                     .foregroundStyle(.secondary)
             }
+        }
+    }
+    
+    
+    private var paceColor: Color {
+        switch result.paceLabel {
+        case "Normal", "Ideal": return Color.MainGreenAnalysis
+        default: return Color.MainRedAnalysis
         }
     }
 
@@ -83,7 +104,7 @@ struct PaceReviewView: View {
     private var audioHighlightSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             sectionLabel("AUDIO HIGHLIGHT")
-            Text("Listen to your best-paced section — where your speaking speed was closest to the ideal range.")
+            Text("Listen to your best-paced section, where your speaking speed was closest to the ideal range.")
                 .font(Text.CustomBody)
                 .foregroundStyle(.black.opacity(0.85))
                 .fixedSize(horizontal: false, vertical: true)
@@ -100,7 +121,7 @@ struct PaceReviewView: View {
 
     private var improvementSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            sectionLabel("HOW TO IMPROVE")
+            sectionLabel("PITCHING TIPS")
             ImprovementTipsList(tips: improvementTips)
         }
     }
@@ -110,6 +131,14 @@ struct PaceReviewView: View {
             .font(.caption.weight(.bold))
             .foregroundStyle(.secondary)
             .tracking(1.2)
+    }
+    
+    private var paceActiveEndpoint: AnalysisScaleView.ActiveEndpoint {
+        switch result.paceLabel {
+        case "Normal", "Ideal": return .trailing   // "Normal" lights up
+        case "Too Slow", "Slow": return .leading   // "Too Slow" lights up
+        default: return .trailing                  // Too Fast → "Too Fast" lights up
+        }
     }
 
     // MARK: Copy
@@ -125,7 +154,7 @@ struct PaceReviewView: View {
         case "Fast":
             return "At \(Int(result.wordsPerMinute)) WPM you're moving quickly. Slowing down slightly gives listeners time to absorb each point before you move on."
         default:
-            return "At \(Int(result.wordsPerMinute)) WPM you're speaking very fast — listeners may struggle to keep up. Pause between key ideas to let them land."
+            return "At \(Int(result.wordsPerMinute)) WPM you're speaking very fast, listeners may struggle to keep up. Pause between key ideas to let them land."
         }
     }
 
@@ -134,14 +163,14 @@ struct PaceReviewView: View {
         case "Too Slow", "Slow":
             return [
                 "Practice with a metronome app, targeting 120–140 WPM.",
-                "Read a paragraph aloud and time yourself — aim for 1 minute per ~130 words.",
-                "Reduce long silences between sentences; pause intentionally, not habitually.",
+                "Read a paragraph aloud and time yourself, keep a similar speed from the beginning to the end of your pitch.",
+                "Reduce long silences between sentences, pause intentionally, not habitually.",
             ]
         case "Normal", "Ideal":
             return [
-                "Maintain your current pace — it's already ideal.",
+                "Maintain your current pace, it's already ideal.",
                 "Use deliberate pauses before key points for extra emphasis.",
-                "Vary your speed slightly: slow down for complex ideas, speed up for familiar ones.",
+                "Vary your speed slightly, slow down for complex ideas, speed up for familiar ones.",
             ]
         default:
             return [

@@ -34,16 +34,25 @@ struct ArticulationReviewView: View {
                 AnalysisScaleView(
                     fraction: inaccuracyFraction,
                     ticks: [
-                        ScaleTick(fraction: 0.0,  label: "0%",  isBold: false),
-                        ScaleTick(fraction: 0.25, label: "25%", isBold: false),
+                        ScaleTick(fraction: 0.0,
+                                  label: "0%",
+                                  isBold: false),
+                        ScaleTick(fraction: 0.25,
+                                  label: "25%",
+                                  isBold: false),
                         ScaleTick(fraction: inaccuracyFraction,
                                   label: "\(inaccuracyPercent)%",
                                   isBold: true),
-                        ScaleTick(fraction: 1.0,  label: "100%", isBold: false),
+                        ScaleTick(fraction: 1.0,
+                                  label: "100%",
+                                  isBold: false),
                     ],
                     leadingLabel: "Clear",
                     trailingLabel: "Unclear",
-                    highlightRange: 0.25...1.0   // above 25% = unclear zone
+                    highlightRange: 0.0...0.25,              // green = the clear zone (left side)
+                    highlightColor: Color.BarGreenAnalysis,
+                    dotColor: articulationColor,
+                    activeEndpoint: inaccuracyPercent > 25 ? .trailing : .leading
                 )
                 explanationText
                 Divider()
@@ -55,14 +64,11 @@ struct ArticulationReviewView: View {
             .padding(.horizontal, 20)
         }
         .background(Color(white: 0.96).ignoresSafeArea())
-        // Native back chevron from the enclosing NavigationStack.
         .navigationTitle("Articulation")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Color(white: 0.96), for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .tint(.black)
-        // Hide the bottom bar (Home / History / Mic) on the review
-        // screens so only the native back chevron is available.
         .toolbar(.hidden, for: .bottomBar)
     }
 
@@ -80,9 +86,9 @@ struct ArticulationReviewView: View {
             VStack(alignment: .trailing, spacing: 4) {
                 Text("\(inaccuracyPercent)%")
                     .font(Text.CustomLargeTitle)
-                    .foregroundStyle(.black)
+                    .foregroundStyle(inaccuracyPercent > 25 ? Color.MainRedAnalysis : Color.MainGreenAnalysis)
                 Text("INACCURACY")
-                    .font(Text.CustomExpandedSH)
+                    .font(Text.CustomFootnote)
                     .foregroundStyle(.secondary)
             }
         }
@@ -115,8 +121,8 @@ struct ArticulationReviewView: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
-                .background(Color.black)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .background(Color.PrimaryAppColor)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
             }
             .disabled(result.pronunciationIssues.isEmpty)
             .opacity(result.pronunciationIssues.isEmpty ? 0.4 : 1)
@@ -125,7 +131,8 @@ struct ArticulationReviewView: View {
 
     private var improvementSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            sectionLabel("HOW TO IMPROVE")
+            sectionLabel("PITCHING TIPS")
+                .font(Text.CustomExpandedSH)
             ImprovementTipsList(tips: improvementTips)
         }
     }
@@ -137,6 +144,9 @@ struct ArticulationReviewView: View {
             .font(.caption.weight(.bold))
             .foregroundStyle(.secondary)
             .tracking(1.2)
+    }
+    private var articulationColor: Color {
+        inaccuracyPercent > 25 ? Color.MainRedAnalysis : Color.MainGreenAnalysis
     }
 
     // MARK: Copy
@@ -150,7 +160,7 @@ struct ArticulationReviewView: View {
 
         switch result.articulationScore {
         case 0.90...:
-            return "Excellent clarity — almost every word came through crisply."
+            return "Excellent clarity, almost every word came through crisply."
         case 0.75...:
             return "Good articulation. \(unclearCount) word\(unclearCount == 1 ? "" : "s") could be sharper."
         case 0.50...:
@@ -162,15 +172,16 @@ struct ArticulationReviewView: View {
 
     private var improvementTips: [String] {
         var tips = [
-            "Emphasize vowel sounds more clearly.",
+            "Open your mouth clearly when speaking to improve word clarity.",
             "Pronounce each syllable deliberately.",
+            "Slow down when saying difficult words.",
         ]
         let droppedEndings = result.pronunciationIssues.contains {
             $0.suggestion.localizedCaseInsensitiveContains("dropping") ||
             $0.suggestion.localizedCaseInsensitiveContains("ending")
         }
         if droppedEndings || result.pronunciationIssues.isEmpty {
-            tips.append("Pay attention to word endings and consonants.")
+            tips.append("Make sure the beginning and ending sounds of each word can be heard clearly, especially technical terms and key messages.")
         }
         return tips
     }

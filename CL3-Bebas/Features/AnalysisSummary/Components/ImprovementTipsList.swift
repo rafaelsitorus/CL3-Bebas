@@ -11,10 +11,6 @@ import SwiftUI
 
 // MARK: - ImprovementTipsList
 
-/// Renders a white card containing a vertical list of checkmark tips.
-/// Used by `ArticulationReviewView`, `IntonationReviewView`, and
-/// `PaceReviewView` — replaces the previously duplicated
-/// `ForEach + HStack + checkmark.circle` pattern in all three views.
 struct ImprovementTipsList: View {
 
     // MARK: Properties
@@ -27,10 +23,10 @@ struct ImprovementTipsList: View {
         VStack(alignment: .leading, spacing: 14) {
             ForEach(tips, id: \.self) { tip in
                 HStack(alignment: .top, spacing: 12) {
-                    Image(systemName: "checkmark.circle")
-                        .font(.system(size: 18))
+                    Image(systemName: AppIcon.bulletPoint)
+                        .font(.system(size: 5))
                         .foregroundStyle(.black.opacity(0.7))
-                        .padding(.top, 1)
+                        .padding(.top, 9)
 
                     Text(tip)
                         .font(Text.CustomBody)
@@ -50,9 +46,9 @@ struct ImprovementTipsList: View {
 
 #Preview {
     ImprovementTipsList(tips: [
-        "Emphasize vowel sounds more clearly.",
-        "Pronounce each syllable deliberately.",
-        "Pay attention to word endings and consonants.",
+        "Make sure the beginning and ending sounds of each word can be heard clearly, especially technical terms and key messages.",
+        "Open your mouth clearly when speaking to improve word clarity.",
+        "Slow down when saying difficult words.",
     ])
     .padding(20)
     .background(Color(white: 0.96))

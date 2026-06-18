@@ -49,18 +49,21 @@ struct IntonationReviewView: View {
                                   label: "0",
                                   isBold: false),
                         ScaleTick(fraction: 0.625,
-                                  label: "0.6",
-                                  isBold: false),   // normalized 0.625 = raw 0.10/0.16
+                                  label: "0.10",
+                                  isBold: false),
                         ScaleTick(fraction: min(1.0, pdqNormalized),
                                   label: pdqDisplay,
                                   isBold: true),
                         ScaleTick(fraction: 1.0,
-                                  label: "1",
+                                  label: "0.16",
                                   isBold: false),
                     ],
                     leadingLabel: "Flat",
                     trailingLabel: "Expressive",
-                    highlightRange: 0.625...1.0
+                    highlightRange: 0.625...1.0,
+                    highlightColor: Color.BarGreenAnalysis,
+                    dotColor: pdqColor,                               // green or red depending on score
+                    activeEndpoint: pdq >= 0.10 ? .trailing : .leading   // "Expressive" or "Flat" gets colored
                 )
                 explanationText
                 Divider()
@@ -78,8 +81,6 @@ struct IntonationReviewView: View {
         .toolbarBackground(Color(white: 0.96), for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .tint(.black)
-        // Hide the bottom bar (Home / History / Mic) on the review
-        // screens so only the native back chevron is available.
         .toolbar(.hidden, for: .bottomBar)
     }
 
@@ -95,14 +96,20 @@ struct IntonationReviewView: View {
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 4) {
-                Text(String(format: "%.2f", pdq))   // raw PDQ in header
+                Text(String(format: "%.2f", pdq))
                     .font(Text.CustomLargeTitle)
-                    .foregroundStyle(.black)
+                    .foregroundStyle(pdqColor)       // already wired up
                 Text("PDQ")
-                    .font(Text.CustomExpandedSH)
+                    .font(Text.CustomFootnote)
                     .foregroundStyle(.secondary)
             }
         }
+    }
+    
+    private var pdqColor: Color {
+        if pdq >= 0.10 { return Color.MainGreenAnalysis }
+        if pdq >= 0.05 { return Color.MainRedAnalysis }  
+        return Color.MainRedAnalysis
     }
     
     private var explanationText: some View {
@@ -115,7 +122,7 @@ struct IntonationReviewView: View {
     private var audioHighlightSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             sectionLabel("AUDIO HIGHLIGHT")
-            Text("Listen to your most expressive moment — where your pitch varied the most.")
+            Text("Listen to your most expressive moment, where your pitch varied the most.")
                 .font(Text.CustomBody)
                 .foregroundStyle(.black.opacity(0.85))
                 .fixedSize(horizontal: false, vertical: true)
@@ -133,7 +140,7 @@ struct IntonationReviewView: View {
 
     private var improvementSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            sectionLabel("HOW TO IMPROVE")
+            sectionLabel("PITCHING TIPS")
             ImprovementTipsList(tips: improvementTips)
         }
     }
@@ -164,13 +171,13 @@ struct IntonationReviewView: View {
         switch pdq {
         case 0.10...:
             return [
-                "Keep varying your pitch naturally — it's already working.",
-                "Use a rising tone to signal questions or build suspense.",
+                "Keep varying your pitch naturally, it's already working.",
+                "Raise your voice slightly when introducing important ideas and questions to build suspense.",
                 "Lower your pitch at the end of statements to sound confident.",
             ]
         case 0.05...:
             return [
-                "Emphasise key words by raising your pitch on them.",
+                "Emphasise key words by raising your vocal cords on them.",
                 "Read aloud daily and practice exaggerating your tone up and down.",
                 "Record yourself and compare your intonation to a confident speaker.",
             ]
@@ -179,7 +186,7 @@ struct IntonationReviewView: View {
                 "Read aloud daily and exaggerate your pitch up and down.",
                 "Emphasise key words by raising your pitch on them.",
                 "Record yourself and compare your intonation to a confident speaker.",
-                "Pause before important points — the silence itself adds variety.",
+                "Pause before important points, the silence itself adds variety.",
             ]
         }
     }

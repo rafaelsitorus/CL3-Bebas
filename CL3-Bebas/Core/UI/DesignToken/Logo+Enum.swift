@@ -14,6 +14,7 @@ enum AppIcon {
     static let playIcon = "play.fill"
     static let bulbIcon = "lightbulb.min.badge.exclamationmark"
     static let editPencil = "pencil.line"
+    static let bulletPoint = "circle.fill"
     
     static let searchIcon = "magnifyingglass"
     static let editIcon = "ellipsis"

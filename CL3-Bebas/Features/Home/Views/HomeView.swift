@@ -124,7 +124,7 @@ struct HomeView: View {
                         VStack(spacing: 8) {
                             Text("Record a pitch to unlock personalized feedback on your pace, intonation, and articulation.")
                                 .font(Text.CustomBody)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(.gray)
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal, 40)
                         }

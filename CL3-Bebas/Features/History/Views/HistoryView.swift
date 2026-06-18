@@ -40,11 +40,22 @@ struct HistoryView: View {
 
     let onRecordingTap: (AnalysisResult) -> Void
 
-    enum FilterOption: String, CaseIterable {
+    enum FilterOption: String, CaseIterable, Identifiable {
         case all          = "All"
         case articulation = "Articulation"
         case intonation   = "Intonation"
         case pace         = "Pace"
+
+        var id: String { rawValue }
+
+        var icon: String {
+            switch self {
+            case .all:          return "list.bullet"
+            case .articulation: return "person.wave.2"
+            case .intonation:   return "waveform.path"
+            case .pace:         return "timer"
+            }
+        }
     }
 
     enum SortOrder: String {
@@ -176,7 +187,8 @@ struct HistoryView: View {
                                 title: recording.title,
                                 date: recording.date,
                                 duration: recording.duration,
-                                issues: recording.issues,
+                                scorePercent: recording.overallScorePercent,
+                                labels: buildLabels(for: recording),
                                 onTap: { onRecordingTap(recording.toAnalysisResult()) }
                             )
                             Divider().padding(.leading, 20)
@@ -250,53 +262,74 @@ struct HistoryView: View {
 
     // MARK: – Filter Bar
     private var filterBar: some View {
-        HStack(spacing: 0) {
-            ForEach(Array(FilterOption.allCases.enumerated()), id: \.element) { index, option in
-                filterTab(option: option, index: index)
-                    .frame(maxWidth: .infinity)
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(FilterOption.allCases) { option in
+                    filterChip(option: option)
+                }
             }
         }
-        .padding(3)
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color(.systemGray5))
-        )
     }
 
     @ViewBuilder
-    private func filterTab(option: FilterOption, index: Int) -> some View {
-        let isSelected  = selectedFilter == option
-        let allCases    = FilterOption.allCases
-        let nextOption  = index + 1 < allCases.count ? allCases[index + 1] : nil
-        let showDivider = !isSelected && (nextOption.map { selectedFilter != $0 } ?? false)
+    private func filterChip(option: FilterOption) -> some View {
+        let isSelected = selectedFilter == option
 
-        HStack(spacing: 0) {
-            Button {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
-                    selectedFilter = option
-                }
-            } label: {
+        Button {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                selectedFilter = option
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: option.icon)
+                    .font(.system(size: 13, weight: .medium))
                 Text(option.rawValue)
-                    .font(Text.CustomFootnote)
-                    .foregroundStyle(isSelected ? Color.primary : Color.secondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 7)
-                    .background {
-                        if isSelected {
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.white)
-                                .shadow(color: .black.opacity(0.10), radius: 3, x: 0, y: 1)
-                        }
-                    }
+                    .font(.system(size: 14, weight: .medium))
             }
-            .buttonStyle(.plain)
-
-            if showDivider {
-                Rectangle()
-                    .fill(Color(.lightGray))
-                    .frame(width: 1, height: 18)
-            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(
+                Capsule()
+                    .fill(isSelected ? Color.TextAppColor : Color(.systemGray6))
+            )
+            .foregroundStyle(isSelected ? Color.white : Color.secondary)
         }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: – Label Builder
+
+    /// Build the coloured label descriptors for a single recording row.
+    /// Each label shows "Category: Value" with colours that match the
+    /// ReviewSummary scheme (green = good, red = needs improvement).
+    private func buildLabels(for recording: RecordingHistoryModel) -> [HistoryLabelInfo] {
+        var labels: [HistoryLabelInfo] = []
+
+        // Intonation
+        let intonation = recording.intonationColors
+        labels.append(HistoryLabelInfo(
+            text: "Intonation: \(recording.intonationLabel)",
+            foregroundColor: intonation.foreground,
+            backgroundColor: intonation.background
+        ))
+
+        // Articulation
+        let articulation = recording.articulationColors
+        labels.append(HistoryLabelInfo(
+            text: "Articulation: \(recording.articulationDisplayLabel)",
+            foregroundColor: articulation.foreground,
+            backgroundColor: articulation.background
+        ))
+
+        // Pace
+        let pace = recording.paceColors
+        labels.append(HistoryLabelInfo(
+            text: "Pace: \(recording.paceLabel)",
+            foregroundColor: pace.foreground,
+            backgroundColor: pace.background
+        ))
+
+        return labels
     }
 }
 

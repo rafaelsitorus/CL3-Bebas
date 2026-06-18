@@ -101,7 +101,7 @@ struct HomeView: View {
                         Text("OVERALL ANALYSIS")
                             .font(Text.CustomExpandedSH)
                             .foregroundStyle(.secondary)
-                        Text("History")
+                        Text("Overview")
                             .font(Text.TitleRegular)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)

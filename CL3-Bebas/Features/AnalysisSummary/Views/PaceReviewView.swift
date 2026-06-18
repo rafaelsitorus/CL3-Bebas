@@ -89,7 +89,7 @@ struct PaceReviewView: View {
     
     private var paceColor: Color {
         switch result.paceLabel {
-        case "Normal", "Ideal": return Color.MainGreenAnalysis
+        case "Ideal": return Color.MainGreenAnalysis
         default: return Color.MainRedAnalysis
         }
     }

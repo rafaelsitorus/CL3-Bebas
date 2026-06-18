@@ -2,65 +2,243 @@
 //  HistoryStore.swift
 //  CL3-Bebas
 //
-//  Shared, lightweight store that keeps the in-memory list of
-//  completed recordings. The recording flow appends to this when the
-//  user confirms; the History view reads from it.
+//  Thin SwiftData wrapper. The actual persisted rows live in
+//  `RecordingHistoryModel` and are queried by `HistoryView` via
+//  `@Query`. This type exposes the only side-effects the rest of the
+//  app needs:
+//    - `save(result:languageCode:)` — call it once a recording finishes
+//      analysis and a new row will appear at the top of the History
+//      list.
+//    - `rename(model:to:)` — call it when the user edits a recording's
+//      title on `ReviewSummaryView`, so the change persists across
+//      launches and shows up in the History list immediately.
 //
-//  Implementation note: this lives in the History view-models folder
-//  so the History feature owns the data, but it's exposed as an
-//  `ObservableObject` and injected via `.environmentObject(...)` at
-//  the app root so any feature can read or write to it.
+//  We keep `HistoryStore` around (instead of calling
+//  `modelContext.insert` from `AppRootView` directly) so:
+//    1. The "save a recording" responsibility is owned by the
+//       History feature, not the App root.
+//    2. Future side-effects (e.g. enqueueing an upload, emitting an
+//       analytics event) have a single place to live.
 //
 
 import Foundation
 import Combine
+import SwiftData
 
 @MainActor
 final class HistoryStore: ObservableObject {
 
-    @Published private(set) var recordings: [RecordingHistory] = []
+    /// The `ModelContext` the store writes through. Wired up
+    /// lazily — see `configure(modelContext:)` — because the
+    /// SwiftUI environment is not available when `@StateObject`
+    /// initialises the store.
+    private var modelContext: ModelContext?
 
     init() {
-        // Seed with a few dummy recordings so the History view is not
-        // empty on first launch.
-        recordings = Self.dummyRecordings
+        // Intentionally empty — the `ModelContext` is injected via
+        // `configure(modelContext:)` from `AppRootView` once the
+        // SwiftUI environment is up.
     }
 
-    /// Append a new completed recording. Used by the recording flow
-    /// when the user confirms a pitch.
-    func append(_ recording: RecordingHistory) {
-        recordings.insert(recording, at: 0)
+    /// Late-binding hook so the store can pick up the shared
+    /// `ModelContext` after `@StateObject` has already created it.
+    /// Idempotent: calling it twice with the same context is a
+    /// no-op, and we only ever replace the context with the same
+    /// value the SwiftUI environment provides.
+    func configure(modelContext: ModelContext) {
+        if self.modelContext !== modelContext {
+            self.modelContext = modelContext
+        }
     }
 
-    // MARK: - Dummy seed data
+    // MARK: - Save
 
-    private static var dummyRecordings: [RecordingHistory] {
-        let cal = Calendar.current
-        return [
-            RecordingHistory(
-                title: "Recording 1",
-                date: cal.date(from: .init(year: 2026, month: 5, day: 20))!,
-                duration: 510,
-                issues: [.intonation, .articulation, .pace, .volume]
-            ),
-            RecordingHistory(
-                title: "Recording 2",
-                date: cal.date(from: .init(year: 2026, month: 5, day: 19))!,
-                duration: 510,
-                issues: [.volume]
-            ),
-            RecordingHistory(
-                title: "Recording 3",
-                date: cal.date(from: .init(year: 2026, month: 5, day: 18))!,
-                duration: 510,
-                issues: [.intonation, .volume]
-            ),
-            RecordingHistory(
-                title: "Recording 4",
-                date: cal.date(from: .init(year: 2026, month: 5, day: 16))!,
-                duration: 510,
-                issues: [.intonation, .pace, .volume]
-            )
-        ]
+    /// Insert a new `RecordingHistoryModel` for the given analysis
+    /// result.
+    ///
+    /// We translate the in-memory `AnalysisResult` (produced by
+    /// `SpeechAnalyzer.analyze(...)`) into the persisted entity and
+    /// also copy the freshly-recorded audio file from
+    /// `FileManager.default.temporaryDirectory` into the app's
+    /// Documents directory so it survives across launches — the
+    /// original `.caf` lives in the temp dir and would be purged by
+    /// iOS at any time.
+    ///
+    /// `languageCode` is "en" or "id" (matches what
+    /// `AppRootView` already extracts from `PitchLanguage`).
+    @discardableResult
+    func save(result: AnalysisResult, languageCode: String) -> RecordingHistoryModel? {
+        // Refuse to save if the `ModelContext` has not been wired
+        // yet — this should never happen in practice because
+        // `AppRootView` calls `configure(modelContext:)` before
+        // `save(...)`, but we guard it so a misuse never crashes.
+        guard let modelContext else {
+            print("⚠️ HistoryStore.save called before configure(modelContext:)")
+            return nil
+        }
+
+        // 1. Copy the recorded audio into Documents (so it persists).
+        let savedAudioPath = persistAudioFile(from: result.audioFileURL)
+
+        // 2. Derive the [SpeechIssue] badge list from the analysis.
+        let issues = deriveIssues(from: result)
+
+        // 3. Pick a display title. We use a sequential counter
+        //    derived from the existing row count so the user sees
+        //    "Recording 1", "Recording 2", etc. — but we read the
+        //    count from SwiftData, not from an in-memory @Published.
+        let existingCount = (try? modelContext.fetchCount(
+            FetchDescriptor<RecordingHistoryModel>()
+        )) ?? 0
+        let title = "Recording \(existingCount + 1)"
+
+        // 4. Build + insert the model. We pass through EVERY field
+        //    of `AnalysisResult` that any downstream review screen
+        //    reads — if a field is missing here, screens like
+        //    Intonation / Pace / Articulation / Unclear Words will
+        //    render empty when the user re-opens a recording from
+        //    History.
+        let model = RecordingHistoryModel(
+            title: title,
+            date: Date(),
+            duration: result.duration,
+            issues: issues,
+            languageCode: languageCode,
+            transcription: result.transcription,
+            wordsPerMinute: result.wordsPerMinute,
+            paceLabel: result.paceLabel,
+            averageAmplitudeDB: result.averageAmplitudeDB,
+            volumeLabel: result.volumeLabel,
+            pitchSamples: result.pitchSamples,
+            pitchVariance: result.pitchVariance,
+            intonationLabel: result.intonationLabel,
+            amplitudeSamples: result.amplitudeSamples,
+            articulationScore: result.articulationScore,
+            pronunciationIssues: result.pronunciationIssues,
+            intonationHighlight: result.intonationHighlight,
+            paceHighlight: result.paceHighlight,
+            audioFileRelativePath: savedAudioPath
+        )
+
+        modelContext.insert(model)
+
+        do {
+            try modelContext.save()
+        } catch {
+            print("⚠️ HistoryStore.save failed: \(error)")
+            return nil
+        }
+
+        return model
+    }
+
+    // MARK: - Rename
+
+    /// Persist a user-edited title back to the SwiftData row.
+    ///
+    /// Called from `ReviewSummaryView` whenever the user finishes
+    /// editing the title (`.onSubmit`, focus loss, etc.). The
+    /// `ModelContext` lives in this store, so callers don't need
+    /// direct access to it. Returns the updated `title` (or the
+    /// original value if the rename was rejected).
+    @discardableResult
+    func rename(model: RecordingHistoryModel, to newTitle: String) -> String {
+        // Refuse empty / whitespace-only titles — fall back to the
+        // current title so the user never sees a blank History row.
+        let trimmed = newTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return model.title
+        }
+        guard let modelContext else {
+            print("⚠️ HistoryStore.rename called before configure(modelContext:)")
+            return model.title
+        }
+
+        // No-op if the title hasn't actually changed.
+        if model.title == trimmed {
+            return model.title
+        }
+
+        model.title = trimmed
+
+        do {
+            try modelContext.save()
+        } catch {
+            print("⚠️ HistoryStore.rename failed: \(error)")
+        }
+
+        return model.title
+    }
+
+    // MARK: - Audio persistence
+
+    /// Copy the freshly-recorded audio file from the temp dir into
+    /// the app's Documents directory and return the path RELATIVE to
+    /// Documents (the format `RecordingHistoryModel` stores).
+    ///
+    /// Returns `nil` if there's nothing to copy or the copy fails.
+    private func persistAudioFile(from sourceURL: URL?) -> String? {
+        guard let sourceURL,
+              FileManager.default.fileExists(atPath: sourceURL.path) else {
+            return nil
+        }
+        guard let docs = FileManager.default.urls(
+            for: .documentDirectory,
+            in: .userDomainMask
+        ).first else {
+            return nil
+        }
+
+        // Generate a unique filename so multiple recordings never
+        // overwrite each other. We keep the original `.caf`
+        // extension so the audio engine can re-open it later.
+        let fileName = "recording-\(UUID().uuidString).caf"
+        let destination = docs.appendingPathComponent(fileName)
+
+        do {
+            // Remove any pre-existing file at the destination (should
+            // never happen with a UUID filename, but be defensive).
+            if FileManager.default.fileExists(atPath: destination.path) {
+                try FileManager.default.removeItem(at: destination)
+            }
+            try FileManager.default.copyItem(at: sourceURL, to: destination)
+            return fileName
+        } catch {
+            print("⚠️ Failed to persist audio file: \(error)")
+            return nil
+        }
+    }
+
+    // MARK: - Issue derivation
+
+    /// Translate an `AnalysisResult` into the badge list the
+    /// `HistoryCard` already knows how to render. The mapping is:
+    ///   - `intonationLabel == "Flat"`            → `.intonation`
+    ///   - `paceLabel` is "Too Fast" / "Too Slow" / "Fast" / "Slow" → `.pace`
+    ///   - `volumeLabel == "Too Quiet" / "Too Loud"` → `.volume`
+    ///   - `articulationScore < 0.55`             → `.articulation`
+    private func deriveIssues(from result: AnalysisResult) -> [SpeechIssue] {
+        var issues: [SpeechIssue] = []
+
+        if result.intonationLabel.localizedCaseInsensitiveContains("flat") {
+            issues.append(.intonation)
+        }
+
+        let pace = result.paceLabel.lowercased()
+        if pace.contains("too fast") || pace.contains("too slow")
+            || pace == "fast" || pace == "slow" {
+            issues.append(.pace)
+        }
+
+        let volume = result.volumeLabel.lowercased()
+        if volume.contains("too quiet") || volume.contains("too loud") {
+            issues.append(.volume)
+        }
+
+        if result.articulationScore < 0.55 {
+            issues.append(.articulation)
+        }
+
+        return issues
     }
 }

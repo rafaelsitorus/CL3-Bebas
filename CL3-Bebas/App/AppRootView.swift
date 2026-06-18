@@ -53,7 +53,14 @@ struct AppRootView: View {
 
     /// Shared store of recordings. Injected as an environment object
     /// so any view (History, recording flow) can read or write.
+    ///
+    /// The store is initialised lazily on first appearance, once the
+    /// SwiftUI environment is up, so we can pass it the shared
+    /// `ModelContext` from `\.modelContext`. (The container is created
+    /// in `CL3_BebasApp` and made available to the whole view
+    /// hierarchy via `.modelContainer(...)`.)
     @StateObject private var historyStore = HistoryStore()
+    @Environment(\.modelContext) private var modelContext
 
     /// Full-screen cover for the recording flow. Acts as a one-time
     /// form. When the user confirms, the cover dismisses and a
@@ -67,10 +74,6 @@ struct AppRootView: View {
     @State private var currentTab: AppTab = .home
     @State private var isAnalyzing: Bool = false
     @State private var analyzer = SpeechAnalyzer()
-    
-    /// Number of recordings completed so far — used to derive the
-    /// next recording's title.
-    @State private var recordingsCounter: Int = 0
 
     // MARK: - Body
 
@@ -167,10 +170,44 @@ struct AppRootView: View {
                             Task {
                                 do {
                                     let result = try await analyzer.analyze(audioData: audioData)
+
+                                    // Persist the completed recording
+                                    // to SwiftData BEFORE dismissing
+                                    // the cover so the History list
+                                    // already shows the new row by
+                                    // the time the user sees
+                                    // ReviewSummary. The
+                                    // `ModelContext` is injected
+                                    // lazily via `\.modelContext`
+                                    // so we wire it into the
+                                    // shared `HistoryStore` here.
+                                    historyStore.configure(modelContext: modelContext)
+                                    let saved = historyStore.save(
+                                        result: result,
+                                        languageCode: langCode
+                                    )
+                                    if let saved {
+                                        print("✅ Saved recording to SwiftData: \(saved.title)")
+                                    }
+
                                     presentedRecording = false
                                     isAnalyzing = false
+
+                                    // Stamp the freshly-saved model's
+                                    // id onto the `AnalysisResult` we
+                                    // push onto the navigation stack.
+                                    // `ReviewSummaryView` uses
+                                    // `result.id` to look the
+                                    // `RecordingHistoryModel` back up
+                                    // from SwiftData, so a title edit
+                                    // on this first-launch screen
+                                    // persists to the same row the
+                                    // user will see when they later
+                                    // open the History list.
+                                    var resultWithId = result
+                                    resultWithId.id = saved?.id
                                     onboardingViewModel.path.append(
-                                        AppRoute.reviewSummary(result)
+                                        AppRoute.reviewSummary(resultWithId)
                                     )
                                 } catch {
                                     print("Analysis failed: \(error)")

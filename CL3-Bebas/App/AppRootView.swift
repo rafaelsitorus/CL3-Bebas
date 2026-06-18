@@ -80,13 +80,29 @@ struct AppRootView: View {
         // top-level destinations. Both share the same native path,
         // so any pushed detail (article, review-summary, etc.) is
         // popped by the same back chevron.
+        //
+        // NB: the page background is applied to `rootContent` (the
+        // inner view) instead of the `NavigationStack` itself.
+        // Attaching `.background` to the `NavigationStack` is
+        // unreliable because each child destination declares its
+        // own background and SwiftUI draws the NavigationStack's
+        // chrome on top of any background set on the stack itself.
+        // Putting `.background` on the content view guarantees the
+        // tint shows behind every screen — root, pushed, and
+        // back-swiped — and is the documented SwiftUI best practice.
         NavigationStack(path: $onboardingViewModel.path) {
             rootContent
+                // Single source of truth for the page background. We
+                // reuse the design-system `Color.lightGrayBC` token
+                // (`#F9F9F9`) so the tint matches the rest of the
+                // app. `.ignoresSafeArea()` makes it extend under the
+                // navigation chrome and the bottom bar so the tint
+                // fills the whole screen.
+                .background(Color.lightGrayBC.ignoresSafeArea())
                 .navigationDestination(for: AppRoute.self) { route in
                     destination(for: route)
                 }
         }
-        .background(Color.lightGrayBC)
         // Inject the history store into the environment so child
         // views (recording flow, history) can read/write to it.
         .environmentObject(historyStore)

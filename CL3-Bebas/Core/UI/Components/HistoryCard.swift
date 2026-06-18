@@ -7,12 +7,28 @@
 
 import SwiftUI
 
+// MARK: - Label descriptor
+
+/// A small value type describing one coloured badge on a History card.
+/// Each badge shows "Category: Value" (e.g. "Intonation: Expressive")
+/// with foreground/background colours that match the ReviewSummary
+/// colour scheme.
+struct HistoryLabelInfo: Identifiable {
+    let id = UUID()
+    let text: String               // e.g. "Intonation: Varied"
+    let foregroundColor: Color
+    let backgroundColor: Color
+}
+
+// MARK: - HistoryCard
+
 struct HistoryCard: View {
 
     let title: String
     let date: Date
     let duration: TimeInterval
-    let issues: [SpeechIssue]
+    let scorePercent: Int
+    let labels: [HistoryLabelInfo]
 
     // "20 May 2026"
     private var formattedDate: String {
@@ -31,66 +47,61 @@ struct HistoryCard: View {
         return String(format: "%02d:%02d", minutes, seconds)
     }
 
-    // Volume bukan metrik utama PitchUp, tidak ditampilkan sebagai badge
-    private var displayedIssues: [SpeechIssue] {
-        issues.filter { $0 != .volume }
-    }
-
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 6) {
+                    // Title
+                    Text(title)
+                        .font(Text.CustomHeadline)
+                        .foregroundStyle(.primary)
 
-            VStack(alignment: .leading, spacing: 6) {
-
-                // Title
-                Text(title)
-                    .font(Text.CustomHeadline)
-                    .foregroundStyle(.primary)
-
-                // "20 May 2026  |  08:30"
-                HStack(spacing: 6) {
-                    Text(formattedDate)
-                    Text("|")
-                    Text(formattedDuration)
-                }
-                .font(Text.CustomFootnote)
-                .foregroundStyle(.secondary)
-
-                // Issue badges
-                HStack(spacing: 8) {
-                    ForEach(displayedIssues) { issue in
-                        SpeechIssueBadge(issue: issue)
+                    // "20 May 2026  |  08:30"
+                    HStack(spacing: 6) {
+                        Text(formattedDate)
+                        Text("|")
+                        Text(formattedDuration)
                     }
+                    .font(Text.CustomFootnote)
+                    .foregroundStyle(.secondary)
                 }
-                .padding(.top, 2)
+
+                Spacer()
+
+                // Score percentage & Chevron
+                HStack(spacing: 12) {
+                    Text("\(scorePercent)%")
+                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .foregroundStyle(.primary)
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Color(.tertiaryLabel))
+                }
             }
 
-            Spacer()
-
-            // Chevron
-            Image(systemName: "chevron.right")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Color(.tertiaryLabel))
+            // Coloured label badges (placed in the outer VStack so it spans the entire card width)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(labels) { label in
+                        Text(label.text)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(label.foregroundColor)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(label.backgroundColor)
+                            .clipShape(Capsule())
+                    }
+                }
+            }
+            .padding(.top, 2)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 14)
-        // Tidak ada background/shadow — flat list style
     }
 }
 
-// MARK: – Badge (abu-abu, bukan merah)
-struct SpeechIssueBadge: View {
-    let issue: SpeechIssue
-
-    var body: some View {
-        Text(issue.title)
-            .font(Text.CustomFootnote)
-            .foregroundStyle(Color(.secondaryLabel))
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(Color(.systemGray4))
-            .clipShape(Capsule())
-    }
-}
+// MARK: – SpeechIssue (unchanged)
 
 enum SpeechIssue: String, CaseIterable, Identifiable {
     case intonation
@@ -110,31 +121,17 @@ enum SpeechIssue: String, CaseIterable, Identifiable {
     }
 }
 
+// MARK: – HistoryCardLink
+
 struct HistoryCardLink: View {
     let title: String
     let date: Date
     let duration: TimeInterval
-    let issues: [SpeechIssue]
+    let scorePercent: Int
+    let labels: [HistoryLabelInfo]
     let onTap: () -> Void
 
-    init(
-        title: String,
-        date: Date,
-        duration: TimeInterval,
-        issues: [SpeechIssue],
-        onTap: @escaping () -> Void
-    ) {
-        self.title = title
-        self.date = date
-        self.duration = duration
-        self.issues = issues
-        self.onTap = onTap
-    }
-
     var body: some View {
-        // A plain button (not a NavigationLink) so the parent can
-        // decide what to push. This keeps the navigation decisions
-        // in the single source of truth (AppRootView).
         Button {
             onTap()
         } label: {
@@ -142,12 +139,17 @@ struct HistoryCardLink: View {
                 title: title,
                 date: date,
                 duration: duration,
-                issues: issues
+                scorePercent: scorePercent,
+                labels: labels
             )
         }
         .buttonStyle(.plain)
     }
 }
+
+// MARK: - Layout helpers (removed unused FlowLayout)
+
+// MARK: - Preview
 
 #Preview {
     NavigationStack {
@@ -157,7 +159,12 @@ struct HistoryCardLink: View {
                     title: "Recording_1",
                     date: .now,
                     duration: 510,
-                    issues: [.intonation, .articulation, .pace, .volume]
+                    scorePercent: 70,
+                    labels: [
+                        HistoryLabelInfo(text: "Intonation: Expressive", foregroundColor: .DarkGreen, backgroundColor: .TintGreen),
+                        HistoryLabelInfo(text: "Articulation: Unclear", foregroundColor: .DarkRed, backgroundColor: .TintRed),
+                        HistoryLabelInfo(text: "Pace: Normal", foregroundColor: .DarkGreen, backgroundColor: .TintGreen),
+                    ]
                 )
                 Divider().padding(.leading, 20)
             }

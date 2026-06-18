@@ -8,6 +8,16 @@
 //  ReviewSummaryView.swift
 //  Paralinguistic
 //
+//
+//  ReviewSummaryView.swift
+//  CL3-Bebas
+//
+//  Created by Theona Arlinton on 08/06/26.
+//
+//
+//  ReviewSummaryView.swift
+//  Paralinguistic
+//
 
 import SwiftUI
 
@@ -21,6 +31,8 @@ struct ReviewSummaryView: View {
 
     @StateObject private var player = FullRecordingPlayer()
     @Environment(\.dismiss) private var dismiss
+    @State private var recordingTitle: String = "Title Recording 1"
+    @State private var isEditingTitle: Bool = false
 
     // MARK: Derived values
 
@@ -44,6 +56,22 @@ struct ReviewSummaryView: View {
         return formatter.string(from: Date())
     }
 
+    /// Motivational sentence shown below the player, keyed to the overall score.
+    private var scoreFeedback: String {
+        switch result.overallScore {
+        case 0.85...:
+            return "Your pitch scored within the excellent range. Your delivery was clear, engaging, and highly effective."
+        case 0.70...:
+            return "Your pitch scored within the good range. Your delivery was solid with only minor areas to refine."
+        case 0.55...:
+            return "Your pitch scored within the fair range. A few adjustments to tone and pace will make a noticeable difference."
+        case 0.40...:
+            return "Your pitch scored within the developing range. Keep practising — focus on clarity and a steady speaking pace."
+        default:
+            return "Your pitch is just getting started. Regular practice will help your delivery improve quickly."
+        }
+    }
+
     // MARK: Body
 
     var body: some View {
@@ -64,8 +92,6 @@ struct ReviewSummaryView: View {
                 }
             }
         }
-        // Native SwiftUI back chevron is provided by the enclosing
-        // NavigationStack — we just style it here.
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Color(white: 0.96), for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
@@ -82,9 +108,31 @@ struct ReviewSummaryView: View {
     private var titleAndScore: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Title Recording 1")
-                    .font(Text.TitleRegular)
-                    .foregroundStyle(.black)
+                // Editable title row
+                HStack(spacing: 6) {
+                    if isEditingTitle {
+                        TextField("Recording title", text: $recordingTitle)
+                            .font(Text.TitleRegular)
+                            .foregroundStyle(.black)
+                            .submitLabel(.done)
+                            .onSubmit { isEditingTitle = false }
+                    } else {
+                        Text(recordingTitle)
+                            .font(Text.TitleRegular)
+                            .foregroundStyle(.black)
+                        
+                        Button {
+                            isEditingTitle = true
+                        } label: {
+                            Image(systemName: AppIcon.editPencil)
+                                .font(.system(size: 17, weight: .medium))
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    
+                }
 
                 Text(recordingDateString)
                     .font(Text.CustomFootnote)
@@ -96,7 +144,7 @@ struct ReviewSummaryView: View {
             VStack(alignment: .trailing, spacing: 2) {
                 Text("\(scorePercent)%")
                     .font(Text.TitleRegular)
-                    .foregroundStyle(.black)
+                    .foregroundStyle(Color.PrimaryAppColor)
 
                 Text("Score")
                     .font(Text.CustomFootnote)
@@ -109,15 +157,22 @@ struct ReviewSummaryView: View {
     }
 
     private var playerSection: some View {
-        FullRecordingPlayerView(player: player, result: result)
-            .padding(.horizontal, 20)
-            .onAppear {
-                if let url = result.audioFileURL {
-                    player.load(url: url, duration: result.duration)
-                }
-            }
-    }
+        VStack(alignment: .leading, spacing: 12) {
+            FullRecordingPlayerView(player: player, result: result)
 
+            Text(scoreFeedback)
+                .font(Text.CustomHeadlineTextRegular)
+                .foregroundStyle(Color.TextAppColor)
+                .padding(.top, 12)
+        }
+        .padding(.horizontal, 20)
+        .onAppear {
+            if let url = result.audioFileURL {
+                player.load(url: url, duration: result.duration)
+            }
+        }
+    }
+    
     private var scoreBreakdown: some View {
         VStack(alignment: .leading, spacing: 0) {
             sectionLabel("SCORE BREAKDOWN")
@@ -179,7 +234,7 @@ struct ReviewSummaryView: View {
         if result.intonationLabel.localizedCaseInsensitiveContains("flat") {
             return (.DarkRed, .TintRed)
         } else {
-            return (.DarkGreen, .TintGreen) // "Expressive" or "Varied"
+            return (.DarkGreen, .TintGreen)
         }
     }
 

@@ -12,9 +12,11 @@ enum AppIcon {
     static let micIcon = "microphone.fill"
     static let pauseIcon = "pause.fill"
     static let playIcon = "play.fill"
+    static let stopIcon = "square.fill"
     static let bulbIcon = "lightbulb.min.badge.exclamationmark"
     static let editPencil = "pencil.line"
     static let bulletPoint = "circle.fill"
+    static let reRecord = "arrow.trianglehead.counterclockwise"
     
     static let searchIcon = "magnifyingglass"
     static let editIcon = "ellipsis"

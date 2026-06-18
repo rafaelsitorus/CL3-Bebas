@@ -183,7 +183,7 @@ private struct StartRecordButton: View {
                         radius: 14, x: 0, y: 5
                     )
 
-                Image(systemName: "mic.fill")
+                Image(systemName: AppIcon.micIcon)
                     .font(.system(size: 26, weight: .semibold))
                     .foregroundColor(.white)
             }
@@ -212,7 +212,7 @@ private struct RecordingControlBar: View {
 
             // Re-record — red circle, white icon
             RecordingActionButton(
-                systemImage: "arrow.trianglehead.counterclockwise",
+                systemImage: (AppIcon.reRecord),
                 iconSize: 20,
                 action: onReRecord,
                 label: "Re-record"
@@ -229,7 +229,7 @@ private struct RecordingControlBar: View {
                             radius: 12, x: 0, y: 4
                         )
 
-                    Image(systemName: isPaused ? "play.fill" : "pause.fill")
+                    Image(systemName: isPaused ? AppIcon.playIcon : AppIcon.pauseIcon)
                         .font(.system(size: 22, weight: .semibold))
                         .foregroundColor(.white)
                         .contentTransition(.symbolEffect(.replace))
@@ -241,7 +241,7 @@ private struct RecordingControlBar: View {
 
             // Stop — red circle, white icon
             RecordingActionButton(
-                systemImage: "square.fill",
+                systemImage: AppIcon.stopIcon,
                 iconSize: 20,
                 action: onStop,
                 label: "Stop recording"

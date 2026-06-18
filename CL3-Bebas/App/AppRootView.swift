@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 // MARK: - App Route
 // Single source of truth for the main NavigationStack.

@@ -105,29 +105,6 @@ struct HistoryView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
 
-                // MARK: – Empty state
-                // First-launch experience: instead of seeding dummy
-                // rows, we just tell the user to record their first
-                // pitch. The empty state disappears as soon as one
-                // row is inserted via `HistoryStore.save(...)`.
-                if filteredRecordings.isEmpty {
-                    VStack(spacing: 8) {
-                        Image(systemName: "waveform.circle")
-                            .font(.system(size: 44, weight: .regular))
-                            .foregroundStyle(.secondary)
-                        Text("No recordings yet")
-                            .font(Text.CustomHeadline)
-                            .foregroundStyle(.primary)
-                        Text("Tap the mic to record your first pitch — it will appear here automatically.")
-                            .font(Text.CustomFootnote)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 40)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 80)
-                }
-
                 // MARK: – Search Bar
                 if isSearchActive {
                     HStack(spacing: 8) {
@@ -167,6 +144,29 @@ struct HistoryView: View {
                 filterBar
                     .padding(.horizontal, 20)
                     .padding(.top, 16)
+                
+                // MARK: – Empty state
+                // First-launch experience: instead of seeding dummy
+                // rows, we just tell the user to record their first
+                // pitch. The empty state disappears as soon as one
+                // row is inserted via `HistoryStore.save(...)`.
+                if filteredRecordings.isEmpty {
+                    VStack(spacing: 8) {
+                        Image(systemName: "waveform.circle")
+                            .font(.system(size: 44, weight: .regular))
+                            .foregroundStyle(.secondary)
+                        Text("No recordings yet")
+                            .font(Text.CustomHeadline)
+                            .foregroundStyle(.primary)
+                        Text("Tap the mic to record your first pitch — it will appear here automatically.")
+                            .font(Text.CustomFootnote)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 40)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 80)
+                }
 
                 // MARK: – Recording List
                 LazyVStack(spacing: 0) {

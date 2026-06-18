@@ -19,6 +19,7 @@ struct ArticleView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("ARTICLE")
                         .font(Text.CustomExpandedSH)
+                        .foregroundColor(.gray)
                         .padding(.top)
                         .padding(.leading)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -33,12 +34,12 @@ struct ArticleView: View {
 
                     Text(title)
                         .font(Text.CustomCondensedSH)
-                        .foregroundColor(.gray)
+                        .foregroundColor(Color.PrimaryMainBlue)
                         .padding(.horizontal)
 
                     Text(status)
                         .font(Text.TitleRegular)
-                        .foregroundColor(.gray)
+                        .foregroundColor(.black)
                         .padding(.horizontal)
 
                     Divider()

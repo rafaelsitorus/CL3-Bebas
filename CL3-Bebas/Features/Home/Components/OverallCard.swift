@@ -34,11 +34,11 @@ struct OverallCard: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
                         .font(Text.CustomHeadlineCard) // Menggunakan token Headline Semibold Anda
-                        .foregroundColor(Color(.systemGray2))
+                        .foregroundColor(Color(.black))
 
                     Text(status)
                         .font(Text.TitleRegular)
-                        .foregroundColor(Color(.systemGray2))
+                        .foregroundColor(Color(.black))
                 }
 
                 Spacer()
@@ -46,8 +46,9 @@ struct OverallCard: View {
                 // Ikon Indikator (Menggunakan SF Symbols)
                 Image(systemName: iconName)
                     .font(.system(size: 33)) // Ukuran ikon yang proporsional
-                    .foregroundColor(.gray)
+                    .foregroundColor(Color.PrimaryMainBlue)
                     .padding(.top, 4)
+                    
             }
 
             // Baris Bawah: Deskripsi Analisis
@@ -64,10 +65,10 @@ struct OverallCard: View {
             if let pillLabel {
                 Text(pillLabel)
                     .font(Text.CustomFootnote)
-                    .foregroundStyle(Color(.secondaryLabel))
+                    .foregroundStyle(Color.SemanticMainRed)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
-                    .background(Color(.systemGray4))
+                    .background(Color.SemanticTintRed)
                     .clipShape(Capsule())
             }
         }

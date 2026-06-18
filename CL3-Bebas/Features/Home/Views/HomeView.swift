@@ -94,39 +94,50 @@ struct HomeView: View {
     }
 
     private var emptyState: some View {
-        ZStack(alignment: .bottom) {
+        // Empty state for the Home tab. The user has zero
+        // recordings, so the analytics / per-metric cards are
+        // meaningless — we hide them and show a single
+        // illustration + CTA pointing them at the mic button on
+        // the bottom bar. The illustration is the `imageHomeScreen`
+        // asset that already exists in `Assets.xcassets` (see
+        // `AppImage.homeScreenIllust`).
+        GeometryReader { geometry in
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("OVERALL ANALYSIS")
-                            .font(Text.CustomExpandedSH)
-                            .foregroundStyle(.secondary)
-                        Text("History")
+                VStack(alignment: .center, spacing: 0) {
+                    
+                    // MARK: – Illustration + prompt
+                    VStack(spacing: 16) {
+                        Spacer() // Mendorong dari atas
+                        
+                        Text("Start Your Pitch")
                             .font(Text.TitleRegular)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 20)
-                    .padding(.top, 8)
-
-                    Spacer().frame(height: 80)
-
-                    VStack(spacing: 8) {
-                        Image(systemName: "waveform.circle")
-                            .font(.system(size: 44, weight: .regular))
-                            .foregroundStyle(.secondary)
-                        Text("No recordings yet")
-                            .font(Text.CustomHeadline)
-                            .foregroundStyle(.primary)
-                        Text("Tap the mic at the bottom right to record your first pitch — your overall analysis will appear here.")
-                            .font(Text.CustomFootnote)
-                            .foregroundStyle(.secondary)
+                            .foregroundColor(.black)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 40)
+                        
+                        Image(AppImage.homeScreenIllust)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(maxWidth: 150)
+                            .accessibilityHidden(true)
+
+                        VStack(spacing: 8) {
+                            Text("Record a pitch to unlock personalized feedback on your pace, intonation, and articulation.")
+                                .font(Text.CustomBody)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 40)
+                        }
+                        
+                        Spacer() // Mendorong dari bawah
                     }
                     .frame(maxWidth: .infinity)
+                    // Memaksa VStack memiliki tinggi minimal setara dengan tinggi layar
+                    .frame(minHeight: geometry.size.height)
                 }
             }
         }
+        .edgesIgnoringSafeArea(.horizontal)
     }
 
     private var analyticsContent: some View {
@@ -136,6 +147,7 @@ struct HomeView: View {
                     // ── Overall Analysis header ─────────────────────
                     Text("OVERALL ANALYSIS")
                         .font(Text.CustomExpandedSH)
+                        .foregroundColor(.gray)
                         .padding(.top)
                         .padding(.leading)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -239,6 +251,7 @@ struct HomeView: View {
 
                     Text("ARTICLE")
                         .font(Text.CustomExpandedSH)
+                        .foregroundColor(.gray)
                         .padding(.top)
                         .padding(.leading)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -250,9 +263,33 @@ struct HomeView: View {
                         onArticleTap(Article.pitchingTips)
                     } label: {
                         ArticleCard(
-                            imageName: "GreyImg",
+                            imageName: "PT1",
                             title: "PITCHING TIPS",
                             status: "How To Control Your Speaking Pace Under Pressure"
+                        )
+                        .frame(maxWidth: .infinity, alignment: .center)
+                    }
+                    .buttonStyle(.plain)
+                    
+                    Button {
+                        onArticleTap(Article.speakingHabits)
+                    } label: {
+                        ArticleCard(
+                            imageName: "PT2",
+                            title: "PITCHING TIPS",
+                            status: "Common Speaking Habits That Weaken a Pitch"
+                        )
+                        .frame(maxWidth: .infinity, alignment: .center)
+                    }
+                    .buttonStyle(.plain)
+                    
+                    Button {
+                        onArticleTap(Article.intonationRole)
+                    } label: {
+                        ArticleCard(
+                            imageName: "CF1",
+                            title: "COMMUNICATION FUNDAMENTAL",
+                            status: "The Role of Intonation in Effective Speaking"
                         )
                         .frame(maxWidth: .infinity, alignment: .center)
                     }
@@ -286,7 +323,7 @@ struct PartitionedProgressBar: View {
                                 .fill(Color.gray.opacity(0.3))
 
                             RoundedRectangle(cornerRadius: 2.5)
-                                .fill(Color.primary)
+                                .fill(Color.PrimaryMainBlue)
                                 .frame(width: geo.size.width * CGFloat(fillRatio))
                         }
                     }

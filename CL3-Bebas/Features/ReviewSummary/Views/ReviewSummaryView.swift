@@ -130,7 +130,9 @@ struct ReviewSummaryView: View {
                         icon: "waveform",
                         title: "Intonation",
                         subtitle: "Vocal Tone",
-                        label: "Expressive"
+                        label: result.intonationLabel,
+                        labelForegroundColor: intonationColors.foreground,
+                        labelBackgroundColor: intonationColors.background
                     )
                 }
 
@@ -139,7 +141,9 @@ struct ReviewSummaryView: View {
                         icon: "timer",
                         title: "Pace",
                         subtitle: "Speaking Speed",
-                        label: result.paceLabel
+                        label: result.paceLabel,
+                        labelForegroundColor: paceColors.foreground,
+                        labelBackgroundColor: paceColors.background
                     )
                 }
 
@@ -148,7 +152,9 @@ struct ReviewSummaryView: View {
                         icon: "person.wave.2",
                         title: "Articulation",
                         subtitle: "Clarity of Word",
-                        label: articulationLabel
+                        label: articulationLabel,
+                        labelForegroundColor: articulationColors.foreground,
+                        labelBackgroundColor: articulationColors.background
                     )
                 }
             }
@@ -166,6 +172,33 @@ struct ReviewSummaryView: View {
             .foregroundStyle(.secondary)
             .tracking(1.2)
             .padding(.horizontal, 20)
+    }
+    
+    // MARK: Color Tokens
+    private var intonationColors: (foreground: Color, background: Color) {
+        if result.intonationLabel.localizedCaseInsensitiveContains("flat") {
+            return (.DarkRed, .TintRed)
+        } else {
+            return (.DarkGreen, .TintGreen) // "Expressive" or "Varied"
+        }
+    }
+
+    private var paceColors: (foreground: Color, background: Color) {
+        if result.paceLabel.localizedCaseInsensitiveContains("ideal") ||
+           result.paceLabel.localizedCaseInsensitiveContains("normal") {
+            return (.DarkGreen, .TintGreen)
+        } else {
+            return (.DarkRed, .TintRed) // "Too Fast" or "Too Slow"
+        }
+    }
+
+    private var articulationColors: (foreground: Color, background: Color) {
+        switch result.articulationScore {
+        case 0.70...:
+            return (.DarkGreen, .TintGreen) // "Excellent" or "Good"
+        default:
+            return (.DarkRed, .TintRed)     // "Fair" or "Unclear"
+        }
     }
 }
 

@@ -34,35 +34,12 @@ struct QuickPitchView: View {
             Spacer()
 
             // Script / transcription area
-            ZStack {
-                if viewModel.recordingState == .idle || viewModel.recordingState == .playback {
-                    // Replace PitchScriptText() calls with this:
-                    if viewModel.selectedLanguage == .english {
-                        PitchScriptText()
-                            .padding(.horizontal, 15)
-                    } else {
-                        PitchScriptTextIndonesia()
-                            .padding(.horizontal, 15)
-                    }
-                } else {
-                    VStack(spacing: 16) {
-                        PitchScriptText()
-                            .opacity(0.25)
-                            .padding(.horizontal, 15)
-
-                        if !viewModel.transcribedText.isEmpty {
-                            Text(viewModel.transcribedText)
-                                .font(.system(size: 16))
-                                .foregroundColor(Color.BluePrimaryBC)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, 15)
-                                .transition(.opacity)
-                        }
-                    }
-                }
-            }
-            .animation(.easeInOut(duration: 0.2), value: viewModel.recordingState)
-
+            
+            LivePitchScriptView(
+                words: viewModel.scriptWords,
+                currentIndex: viewModel.currentWordIndex
+            )
+            .padding(.horizontal, 15)
             Spacer()
 
 
@@ -88,6 +65,9 @@ struct QuickPitchView: View {
             Spacer().frame(height: 48)
         }
         .background(Color(.systemBackground))
+        .onAppear {
+                viewModel.resetRecording()
+        }
         .alert("Microphone Access Denied", isPresented: $viewModel.showPermissionDeniedAlert) {
             Button("Open Settings") {
                 if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -145,7 +125,7 @@ struct QuickPitchView: View {
                 )
                 // Play
                 CircleIconButton(systemName: AppIcon.playIcon, action: {
-                    // Playback logic (AVAudioPlayer)
+                    viewModel.playback()
                 })
                 // Submit
                 CircleIconButton(

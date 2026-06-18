@@ -15,6 +15,8 @@ struct AnalysisCategoryCard: View {
     let title: String
     let subtitle: String
     let label: String
+    var labelForegroundColor: Color = .black
+    var labelBackgroundColor: Color = Color.black.opacity(0.05)
 
     // MARK: Body
 
@@ -29,6 +31,7 @@ struct AnalysisCategoryCard: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.black)
 
                 Text(subtitle)
                     .font(.system(size: 14))
@@ -38,9 +41,10 @@ struct AnalysisCategoryCard: View {
             Spacer()
 
             Text(label)
-                .font(.system(size: 13, weight: .regular))
+                .font(.system(size: 13, weight: .semibold))
                 .frame(width: 86, height: 28)
-                .background(Color.black.opacity(0.05))
+                .foregroundStyle(labelForegroundColor)
+                .background(labelBackgroundColor)
                 .clipShape(Capsule())
 
             Image(systemName: "chevron.right")
@@ -56,4 +60,20 @@ struct AnalysisCategoryCard: View {
         )
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
+}
+
+// MARK: - Preview
+
+#Preview {
+    VStack(spacing: 16) {
+        AnalysisCategoryCard(
+            icon: "waveform.path",
+            title: "Pace",
+            subtitle: "Vocal Tone",
+            label: "Expressive"
+        )
+        
+    }
+    .padding()
+    .background(Color(white: 0.96))
 }

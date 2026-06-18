@@ -259,65 +259,6 @@ struct AppRootView: View {
         }
     }
 
-    // MARK: - Dummy Analysis
-
-    /// Build a placeholder `AnalysisResult` so the entire
-    /// post-recording flow (ReviewSummary → Pace / Articulation /
-    /// Intonation → Unclear Words) can be demonstrated end-to-end
-    /// even before the real analyzer is wired up. The values are
-    /// deterministic so repeated runs give the same experience.
-    private func makeDummyAnalysisResult(languageCode: String) -> AnalysisResult {
-        AnalysisResult(
-            transcription: languageCode == "en"
-                ? "Hello, I am excited to share my idea with you today."
-                : "Halo, saya senang dapat membagikan ide saya hari ini.",
-            duration: 30,
-            wordsPerMinute: 145,
-            paceLabel: "Ideal",
-            averageAmplitudeDB: -22,
-            volumeLabel: "Good",
-            pitchSamples: (0..<100).map { i in
-                150 + 40 * sin(Float(i) / 5)
-            },
-            pitchVariance: 1200,
-            intonationLabel: "Varied",
-            amplitudeSamples: (0..<100).map { i in
-                -20 + 8 * sin(Float(i) / 3)
-            },
-            articulationScore: 0.78,
-            pronunciationIssues: [
-                PronunciationIssue(
-                    word: "excited",
-                    timestamp: 4,
-                    confidence: 0.55,
-                    suggestion: "Try emphasising both syllables."
-                ),
-                PronunciationIssue(
-                    word: "today",
-                    timestamp: 12,
-                    confidence: 0.62,
-                    suggestion: "The final syllable could be clearer."
-                )
-            ],
-            audioFileURL: nil,
-            intonationHighlight: AudioHighlightSegment(startTime: 5, duration: 10),
-            paceHighlight: AudioHighlightSegment(startTime: 0, duration: 15)
-        )
-    }
-
-    /// Maps the dummy result's flags to the badges shown in the
-    /// history card.
-    private func inferIssues(from result: AnalysisResult) -> [SpeechIssue] {
-        var issues: [SpeechIssue] = []
-        if result.articulationScore < 0.85 { issues.append(.articulation) }
-        if result.intonationLabel != "Varied" { issues.append(.intonation) }
-        if result.paceLabel != "Ideal" && result.paceLabel != "Normal" {
-            issues.append(.pace)
-        }
-        issues.append(.volume) // dummy recordings always carry volume
-        return issues
-    }
-
     /// Native bottom bar — like Apple Health / Apple Music.
     /// Layout:
     ///   - LEFT side (Home + History): two plain icon buttons, no

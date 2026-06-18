@@ -17,6 +17,12 @@ extension Color {
     static let RedSecondarySC = Color("#FFE6E6")
     static let GreyAccentSC = Color("#979797")
     
+    // label
+    static let TintRed = Color("#FFF8F8")
+    static let DarkRed = Color("#A91F1F")
+    static let DarkGreen = Color("#044525")
+    static let TintGreen = Color("#E8FCF2")
+    
     static let whiteSC = Color("#FFFFFF")
     
     static let lightGrayBC = Color("#F9F9F9")

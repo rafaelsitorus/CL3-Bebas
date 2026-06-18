@@ -17,6 +17,11 @@ struct HistoryView: View {
     @State private var isSelectMode = false
     @Environment(\.dismiss) private var dismiss
 
+    // Focus state for the search bar so the magnifier toolbar
+    // button can pop the keyboard up by setting `isSearchActive`
+    // and focusing the field in the same transaction.
+    @FocusState private var isSearchFieldFocused: Bool
+
     let onRecordingTap: (AnalysisResult) -> Void
 
     enum FilterOption: String, CaseIterable {
@@ -104,6 +109,46 @@ struct HistoryView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
 
+                // MARK: – Search Bar
+                // The search bar only renders when `isSearchActive`
+                // is true (toggled by the magnifier toolbar button).
+                // It is bound to `searchText` so the existing
+                // `filteredRecordings` computed property filters the
+                // list live as the user types.
+                if isSearchActive {
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(.secondary)
+                        TextField(
+                            "Search recordings",
+                            text: $searchText
+                        )
+                        .focused($isSearchFieldFocused)
+                        .submitLabel(.search)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+
+                        if !searchText.isEmpty {
+                            Button {
+                                searchText = ""
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color(.systemGray6))
+                    )
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+
                 // MARK: – Filter Bar
                 filterBar
                     .padding(.horizontal, 20)
@@ -135,12 +180,20 @@ struct HistoryView: View {
             // MARK: – Tombol Search (terpisah)
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    isSearchActive = true   // munculkan search bar + keyboard
+                    // Show the search bar and pop the keyboard up
+                    // in the same transaction. We use `DispatchQueue`
+                    // because toggling `isSearchActive` and focusing
+                    // the field in the same view-update pass can race
+                    // — the focus call lands before the field is in
+                    // the view hierarchy, so iOS silently drops it.
+                    isSearchActive = true
+                    DispatchQueue.main.async {
+                        isSearchFieldFocused = true
+                    }
                 } label: {
                     Image(systemName: "magnifyingglass")
                 }
                 .buttonStyle(.plain)
-                .glassEffect(.regular, in: Circle())
             }
 
             // MARK: – Tombol Menu (terpisah)
@@ -183,7 +236,6 @@ struct HistoryView: View {
                     Image(systemName: "ellipsis")
                 }
                 .buttonStyle(.plain)
-                .glassEffect(.regular, in: Circle())
             }
         }
     }
@@ -242,7 +294,7 @@ struct HistoryView: View {
 
 #Preview {
     let mockHistoryStore = HistoryStore()
-    
+
     return NavigationStack {
         HistoryView()
             .environmentObject(mockHistoryStore)

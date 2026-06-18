@@ -35,6 +35,7 @@ final class RecordPitchViewModel: ObservableObject {
     @Published var waveformBars:     [Float]
     @Published var permissionDenied: Bool  = false
     @Published var isConfirmed:      Bool  = false
+    @Published var recordingTitle: String = "Title Recording 1"
 
     // Alert states for the new UI
     @Published var showReRecordAlert:  Bool = false

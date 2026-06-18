@@ -28,11 +28,13 @@ struct RecordingView: View {
             // ── Header ─────────────────────────────────────────────────
             VStack(alignment: .leading, spacing: 6) {
                 Text("RECORD PITCH")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.secondary)
-                    .tracking(0.5)
+                    .font(Text.CustomExpandedSH)
+                    .foregroundStyle(.secondary)
+                    .tracking(1.2)
+                    .padding(.top, 20)
+                    .padding(.bottom, 24)
 
-                Text("Title Recording 1")
+                Text(viewModel.recordingTitle)
                     .font(.system(size: 28, weight: .bold))
                     .foregroundColor(.primary)
             }
@@ -42,11 +44,11 @@ struct RecordingView: View {
 
             // ── Timer ──────────────────────────────────────────────────
             Text(viewModel.formattedTime)
-                .font(.system(size: 56, weight: .light, design: .rounded))
+                .font(.system(size: 34, weight: .light, design: .rounded))
                 .monospacedDigit()
                 .foregroundColor(.primary)
                 .frame(maxWidth: .infinity)
-                .padding(.top, 40)
+                .padding(.top, 140)
 
             // ── Waveform ───────────────────────────────────────────────
             WaveformView(bars: viewModel.waveformBars)
@@ -59,17 +61,23 @@ struct RecordingView: View {
 
             // ── Bottom Controls ────────────────────────────────────────
             if viewModel.isRecording {
-                // Recording active: show re-record, pause, stop
                 RecordingControlBar(
                     isPaused: viewModel.isPaused,
-                    onReRecord: { viewModel.showReRecordAlert = true },
+                    onReRecord: {
+                        // Pause immediately so timer freezes behind the alert
+                        if !viewModel.isPaused { viewModel.togglePauseResume() }
+                        viewModel.showReRecordAlert = true
+                    },
                     onPauseResume: { viewModel.togglePauseResume() },
-                    onStop: { viewModel.showFinishAlert = true }
+                    onStop: {
+                        // Pause immediately so timer freezes behind the alert
+                        if !viewModel.isPaused { viewModel.togglePauseResume() }
+                        viewModel.showFinishAlert = true
+                    }
                 )
                 .padding(.bottom, 48)
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
             } else {
-                // Not yet recording: show mic button to start
                 StartRecordButton {
                     viewModel.beginRecordingSession()
                 }
@@ -79,9 +87,6 @@ struct RecordingView: View {
         }
         .background(Color(.systemBackground))
         .navigationBarBackButtonHidden(true)
-        // No toolbar items declared here — the recording
-        // coordinator owns the single toolbar (one back button)
-        // so we don't end up with duplicate buttons.
         // ── Alerts ─────────────────────────────────────────────────────
         .alert("Microphone Access Denied",
                isPresented: $viewModel.permissionDenied) {
@@ -94,20 +99,24 @@ struct RecordingView: View {
         } message: {
             Text("Please allow microphone access in Settings to record your pitch.")
         }
-        // Re-record confirmation
         .alert("Are you sure you want to re-record your pitch?",
                isPresented: $viewModel.showReRecordAlert) {
             Button("Yes") {
                 viewModel.reRecord()
             }
-            Button("No", role: .cancel) { }
+            Button("No", role: .cancel) {
+                // Resume if we paused just to show the alert
+                if viewModel.isPaused { viewModel.togglePauseResume() }
+            }
         } message: {
             Text("If you re-record, the previously recorded pitch will be lost.")
         }
-        // Finish / analyze confirmation
         .alert("Are you sure you want to finish and analyze the recording?",
                isPresented: $viewModel.showFinishAlert) {
-            Button("No", role: .cancel) { }
+            Button("No", role: .cancel) {
+                // Resume if we paused just to show the alert
+                if viewModel.isPaused { viewModel.togglePauseResume() }
+            }
             Button("Finish") {
                 viewModel.finishRecording()
                 onConfirm?()
@@ -115,7 +124,6 @@ struct RecordingView: View {
         } message: {
             Text("The recording will be processed and analyzed.")
         }
-        // Time limit reached
         .alert("Recording time limit reached",
                isPresented: $viewModel.showTimeLimitAlert) {
             Button("Okay") {
@@ -134,16 +142,14 @@ struct RecordingView: View {
 struct WaveformView: View {
     let bars: [Float]
 
-    private let barWidth:   CGFloat = 2.5
-    private let barGap:     CGFloat = 1.5
+    private let barWidth: CGFloat = 2.5
+    private let barGap:   CGFloat = 1.5
 
     var body: some View {
         GeometryReader { proxy in
-            let h = proxy.size.height          // e.g. 120 pt
-
+            let h = proxy.size.height
             HStack(alignment: .center, spacing: barGap) {
                 ForEach(Array(bars.enumerated()), id: \.offset) { _, amp in
-                    // Minimum 8 pt so bars are always visible at rest
                     let barH = max(8, h * CGFloat(amp))
                     RoundedRectangle(cornerRadius: 1.5)
                         .fill(Color.primary)
@@ -156,7 +162,8 @@ struct WaveformView: View {
     }
 }
 
-// MARK: - Start Record Button (mic icon — initial state)
+// MARK: - Start Record Button
+
 private struct StartRecordButton: View {
     let action: () -> Void
     @State private var isPressed = false
@@ -192,8 +199,8 @@ private struct StartRecordButton: View {
     }
 }
 
+// MARK: - Recording Control Bar
 
-// MARK: - Recording Control Bar (re-record, pause, stop)
 private struct RecordingControlBar: View {
     let isPaused: Bool
     let onReRecord: () -> Void
@@ -202,16 +209,16 @@ private struct RecordingControlBar: View {
 
     var body: some View {
         HStack(spacing: 40) {
-            // Re-record button (circle outline, red)
+
+            // Re-record — red circle, white icon
             RecordingActionButton(
                 systemImage: "arrow.trianglehead.counterclockwise",
-                color: .red,
-                size: 28,
+                iconSize: 20,
                 action: onReRecord,
                 label: "Re-record"
             )
 
-            // Pause / Resume button (blue filled circle)
+            // Pause / Resume — blue filled circle
             Button(action: onPauseResume) {
                 ZStack {
                     Circle()
@@ -232,11 +239,10 @@ private struct RecordingControlBar: View {
             .animation(.easeInOut(duration: 0.15), value: isPaused)
             .accessibilityLabel(isPaused ? "Resume recording" : "Pause recording")
 
-            // Stop button (red filled square)
+            // Stop — red circle, white icon
             RecordingActionButton(
                 systemImage: "square.fill",
-                color: .red,
-                size: 22,
+                iconSize: 20,
                 action: onStop,
                 label: "Stop recording"
             )
@@ -246,10 +252,10 @@ private struct RecordingControlBar: View {
 }
 
 // MARK: - Recording Action Button (re-record & stop)
+
 private struct RecordingActionButton: View {
     let systemImage: String
-    let color: Color
-    let size: CGFloat
+    let iconSize: CGFloat
     let action: () -> Void
     let label: String
 
@@ -257,12 +263,17 @@ private struct RecordingActionButton: View {
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.system(size: size, weight: .medium))
-                .foregroundColor(color)
-                .frame(width: 48, height: 48)
-                .contentShape(Circle())
-                .scaleEffect(isPressed ? 0.88 : 1.0)
+            ZStack {
+                Circle()
+                    .fill(Color.red)
+                    .frame(width: 55, height: 55)
+                    .shadow(color: Color.red.opacity(0.35), radius: 8, x: 0, y: 3)
+
+                Image(systemName: systemImage)
+                    .font(.system(size: iconSize, weight: .semibold))
+                    .foregroundColor(.white)
+            }
+            .scaleEffect(isPressed ? 0.90 : 1.0)
         }
         .buttonStyle(.plain)
         .simultaneousGesture(
@@ -275,6 +286,7 @@ private struct RecordingActionButton: View {
 }
 
 // MARK: - Previews
+
 #Preview("Recording – idle") {
     NavigationStack {
         RecordingView(viewModel: RecordPitchViewModel(isPreview: true))

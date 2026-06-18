@@ -1,5 +1,5 @@
 //
-//  LanguangeSelectionView.swift
+//  LanguageSelectionView.swift
 //  CL3-Bebas
 //
 //  Created by Danendra Darmawansyah on 09/06/26.
@@ -25,75 +25,167 @@ struct RecordingLanguageSelectionView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // ── Language Picker ─────────────────────────────────────────
-            LanguagePickerCard(selectedLanguage: $viewModel.selectedLanguage)
-                .padding(.horizontal, 24)
-                .padding(.top, 24)
 
-            // ── Helper Text ─────────────────────────────────────────────
-            Text("Please select the language you wish to use for your pitch, and record your pitch no more than 5 minutes.")
-                .font(.system(size: 15))
-                .foregroundColor(.primary)
+            // ── Section label ────────────────────────────────────────────
+            Text("RECORD PITCH")
+                .font(Text.CustomExpandedSH)
+                .foregroundStyle(.secondary)
+                .tracking(1.2)
+                .padding(.horizontal, 24)
+                .padding(.top, 20)
+                .padding(.bottom, 24)
+
+            // ── Editable title ───────────────────────────────────────────
+            EditableTitleRow(title: $viewModel.recordingTitle)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 20)
+
+            // ── Helper text ──────────────────────────────────────────────
+            Text("Please select the language you will use for your pitch before starting.")
+                .font(Text.CustomHeadlineTextRegular)
+                .foregroundStyle(.primary)
                 .multilineTextAlignment(.leading)
                 .padding(.horizontal, 24)
-                .padding(.top, 24)
+                .padding(.bottom, 30)
+
+            // ── Language picker ──────────────────────────────────────────
+            LanguagePickerCard(selectedLanguage: $viewModel.selectedLanguage)
+                .padding(.horizontal, 24)
+
+            // ── Info banner ──────────────────────────────────────────────
+            InfoBanner(text: "Pitch recordings are limited to 5 minutes.")
+                .padding(.horizontal, 24)
+                .padding(.top, 45)
+                
 
             Spacer()
         }
-        .background(Color(.systemBackground))
-        .navigationTitle("Record Pitch")
-        .navigationBarTitleDisplayMode(.large)
+        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
-        // No toolbar items declared here — the recording
-        // coordinator owns the single toolbar so we don't end up
-        // with duplicate back / confirm buttons.
+    }
+}
+
+// MARK: - Editable Title Row
+
+private struct EditableTitleRow: View {
+    @Binding var title: String
+    @FocusState private var isFocused: Bool
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 8) {
+            if isFocused {
+                TextField("Recording title", text: $title)
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundStyle(.primary)
+                    .focused($isFocused)
+                    .submitLabel(.done)
+                    .onSubmit { isFocused = false }
+            } else {
+                Text(title.isEmpty ? "Untitled" : title)
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    // Tapping the text itself also activates editing
+                    .onTapGesture { isFocused = true }
+            }
+
+            Button {
+                isFocused = true
+            } label: {
+                Image(systemName: AppIcon.editPencil.description)
+                    .font(.system(size: 17))
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+        }
+        // Tapping anywhere on the row (including whitespace) activates editing
+        .contentShape(Rectangle())
+        .onTapGesture { isFocused = true }
     }
 }
 
 // MARK: - Language Picker Card
+
 private struct LanguagePickerCard: View {
     @Binding var selectedLanguage: PitchLanguage
 
     var body: some View {
         VStack(spacing: 0) {
             ForEach(Array(PitchLanguage.allCases.enumerated()), id: \.element.id) { index, language in
-                Button {
-                    withAnimation(.easeInOut(duration: 0.18)) {
-                        selectedLanguage = language
-                    }
-                } label: {
-                    HStack {
-                        Text(language.rawValue)
-                            .font(.system(size: 16))
-                            .foregroundColor(
-                                selectedLanguage == language
-                                    ? Color(red: 0.0, green: 0.48, blue: 1.0)
-                                    : .primary
-                            )
-                        Spacer()
-                        if selectedLanguage == language {
-                            Image(systemName: "checkmark")
-                                .foregroundColor(Color(red: 0.0, green: 0.48, blue: 1.0))
-                                .font(.system(size: 14, weight: .semibold))
-                                .transition(.opacity.combined(with: .scale))
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 16)
-                }
-                .buttonStyle(.plain)
+                LanguagePickerRow(
+                    language: language,
+                    isSelected: selectedLanguage == language,
+                    action: { selectedLanguage = language }
+                )
 
                 if index < PitchLanguage.allCases.count - 1 {
-                    Divider().padding(.leading, 16)
+                    Divider()
+                        .padding(.leading, 16)
                 }
             }
         }
-        .background(Color(.systemGray6))
+        .background(Color(.systemBackground))
         .cornerRadius(12)
     }
 }
 
-// MARK: - Previews (isPreview: true → no AVFoundation, no crash)
+// MARK: - Language Picker Row
+
+private struct LanguagePickerRow: View {
+    let language: PitchLanguage
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                Text(language.rawValue)
+                    .font(.system(size: 16))
+                    .foregroundStyle(isSelected ? Color.accentColor : .primary)
+                Spacer()
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Color.accentColor)
+                        .transition(.opacity.combined(with: .scale))
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 16)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .animation(.easeInOut(duration: 0.18), value: isSelected)
+    }
+}
+
+// MARK: - Info Banner
+
+private struct InfoBanner: View {
+    let text: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "info.circle")
+                .font(.system(size: 15))
+                .foregroundStyle(Color.accentColor)
+            Text(text)
+                .font(.system(size: 14))
+                .foregroundStyle(Color.accentColor)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.accentColor.opacity(0.1))
+        .cornerRadius(10)
+    }
+}
+
+// MARK: - Previews
+
 #Preview("English selected") {
     NavigationStack {
         RecordingLanguageSelectionView(viewModel: RecordPitchViewModel(isPreview: true))

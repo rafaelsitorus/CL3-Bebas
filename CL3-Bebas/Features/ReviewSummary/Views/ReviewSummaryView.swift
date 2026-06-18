@@ -329,6 +329,7 @@ struct ReviewSummaryView: View {
         paceLabel: "Too Fast",
         averageAmplitudeDB: -22,
         volumeLabel: "Good",
+        overallScore: 0.5,
         pitchSamples: [],
         pitchVariance: 600,
         intonationLabel: "Varied",

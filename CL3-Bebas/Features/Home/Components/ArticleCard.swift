@@ -27,13 +27,13 @@ struct ArticleCard: View {
                     
                     Text(title)
                         .font(Text.CustomCondensedSH)
-                        .foregroundColor(.gray)
+                        .foregroundColor(Color.PrimaryMainBlue)
                         .padding(.bottom)
                         .padding(.horizontal)
                     
                     Text(status)
                         .font(Text.TitleRegular)
-                        .foregroundColor(.gray)
+                        .foregroundColor(.black)
                         .padding(.horizontal)
                         .padding(.bottom)
                 }

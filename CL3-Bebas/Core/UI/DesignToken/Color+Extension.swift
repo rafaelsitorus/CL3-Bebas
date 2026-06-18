@@ -12,6 +12,9 @@ extension Color {
     static let BluePrimaryBC = Color("#2992E9")
     static let BlueSecondaryBC = Color("#BFE2FF")
     static let BlueAccentBC = Color("#F6FDFF")
+    static let PrimaryMainBlue = Color("0077FF")
+    static let SemanticMainRed = Color("FF393C")
+    static let SemanticTintRed = Color("FFEEEF")
     
     static let RedPrimarySC = Color("#D33838")
     static let RedSecondarySC = Color("#FFE6E6")

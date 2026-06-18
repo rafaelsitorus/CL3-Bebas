@@ -71,6 +71,14 @@ final class RecordingHistoryModel {
     var averageAmplitudeDB: Float
     var volumeLabel: String
 
+    /// Overall pitch score (0...1) computed by
+    /// `AnalysisResult.overallScore`. We persist the value (rather
+    /// than recomputing it from pace / intonation / articulation on
+    /// every read) so the Home view can average it across the
+    /// latest N recordings with a single `@Query`, without having
+    /// to re-derive it from the three inputs.
+    var overallScore: Float
+
     /// Persisted F0 samples (Hz per chunk) — drives the Intonation
     /// detail chart. Empty array is a valid value (silent recording).
     var pitchSamples: [Float]
@@ -119,6 +127,7 @@ final class RecordingHistoryModel {
         paceLabel: String,
         averageAmplitudeDB: Float,
         volumeLabel: String,
+        overallScore: Float,
         pitchSamples: [Float],
         pitchVariance: Float,
         intonationLabel: String,
@@ -140,6 +149,7 @@ final class RecordingHistoryModel {
         self.paceLabel = paceLabel
         self.averageAmplitudeDB = averageAmplitudeDB
         self.volumeLabel = volumeLabel
+        self.overallScore = overallScore
         self.pitchSamples = pitchSamples
         self.pitchVariance = pitchVariance
         self.intonationLabel = intonationLabel

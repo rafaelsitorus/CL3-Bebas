@@ -97,7 +97,10 @@ final class HistoryStore: ObservableObject {
         //    reads — if a field is missing here, screens like
         //    Intonation / Pace / Articulation / Unclear Words will
         //    render empty when the user re-opens a recording from
-        //    History.
+        //    History. We also persist the derived `overallScore`
+        //    (same formula as `AnalysisResult.overallScore`) so the
+        //    Home view can average it across the latest recordings
+        //    without re-deriving it from the three inputs.
         let model = RecordingHistoryModel(
             title: title,
             date: Date(),
@@ -109,6 +112,7 @@ final class HistoryStore: ObservableObject {
             paceLabel: result.paceLabel,
             averageAmplitudeDB: result.averageAmplitudeDB,
             volumeLabel: result.volumeLabel,
+            overallScore: Self.overallScore(from: result),
             pitchSamples: result.pitchSamples,
             pitchVariance: result.pitchVariance,
             intonationLabel: result.intonationLabel,
@@ -207,6 +211,39 @@ final class HistoryStore: ObservableObject {
             print("⚠️ Failed to persist audio file: \(error)")
             return nil
         }
+    }
+
+    // MARK: - Derived metric
+
+    /// Same formula as `AnalysisResult.overallScore` (articulation
+    /// 40 % + pace 30 % + intonation 30 %) so the persisted
+    /// `RecordingHistoryModel.overallScore` matches what the
+    /// `ReviewSummary` screen shows the user at save-time.
+    ///
+    /// We extract it here as a static helper instead of using
+    /// `result.overallScore` directly because `overallScore` is
+    /// declared as a computed property on `AnalysisResult` —
+    /// calling it from a static context is awkward and we want the
+    /// formula to live in one place (this file) so the value
+    /// persisted to SwiftData and the value displayed to the user
+    /// stay in lockstep.
+    static func overallScore(from result: AnalysisResult) -> Float {
+        let paceScore: Float
+        switch result.paceLabel {
+        case "Ideal":          paceScore = 1.0
+        case "Normal":         paceScore = 0.85
+        case "Fast", "Slow":   paceScore = 0.65
+        case "Too Fast",
+             "Too Slow":       paceScore = 0.35
+        default:               paceScore = 0.5
+        }
+
+        let intonationScore: Float =
+            result.intonationLabel.localizedCaseInsensitiveContains("varied") ? 1.0 : 0.5
+
+        return result.articulationScore * 0.4
+             + paceScore * 0.3
+             + intonationScore * 0.3
     }
 
     // MARK: - Issue derivation

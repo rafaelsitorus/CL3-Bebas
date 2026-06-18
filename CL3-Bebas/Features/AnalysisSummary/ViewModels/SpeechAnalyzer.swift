@@ -15,6 +15,17 @@ import AVFoundation
 // MARK: - Analysis Result
 
 struct AnalysisResult {
+    /// Stable identifier of the persisted `RecordingHistoryModel`
+    /// row this result was built from, if any.
+    ///
+    /// `nil` for ephemeral results (e.g. the live analysis produced
+    /// by the recording flow before it is saved). Set when the
+    /// result is re-hydrated from a SwiftData row (e.g. when the
+    /// user taps a History row) so downstream screens like
+    /// `ReviewSummaryView` can look the row back up and persist
+    /// edits (e.g. title changes) back to SwiftData.
+    var id: UUID?
+
     var transcription: String
     var duration: TimeInterval
     var wordsPerMinute: Double

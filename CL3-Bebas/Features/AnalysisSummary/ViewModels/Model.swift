@@ -8,7 +8,7 @@
 
 import Foundation
 
-struct WordTiming {
+struct WordTiming: Codable, Hashable {
     var word: String
     var start: TimeInterval
     var end: TimeInterval
@@ -18,8 +18,8 @@ struct WordTiming {
 /// A sentence/segment in which a flagged word appeared, with its own audio
 /// clip for playback (e.g. "I saw my mom **cooking** eleven ball of meats
 /// for the whole family").
-struct PronunciationExampleSentence: Identifiable {
-    var id = UUID()
+struct PronunciationExampleSentence: Identifiable, Codable, Hashable {
+    var id: UUID = UUID()
     var text: String            // full sentence text
     var highlightedWord: String // the word to bold within `text`
     var audioFileURL: URL?      // clip covering just this sentence, if available
@@ -27,7 +27,7 @@ struct PronunciationExampleSentence: Identifiable {
     var duration: TimeInterval  // length of this segment
 }
 
-struct PronunciationIssue {
+struct PronunciationIssue: Codable, Hashable {
     var word: String
     var timestamp: TimeInterval
     var confidence: Float
@@ -40,18 +40,18 @@ struct PronunciationIssue {
 /// A highlighted window of the recording for the "Audio Highlight" playback
 /// shown on the Intonation / Pace detail screens — e.g. the most expressive
 /// 10–20s segment for Intonation, or the section closest to ideal pace.
-struct AudioHighlightSegment {
+struct AudioHighlightSegment: Codable, Hashable {
     var startTime: TimeInterval
     var duration: TimeInterval
 }
 
 
-extension PronunciationExampleSentence: Hashable {
+extension PronunciationExampleSentence {
     static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
 }
 
-extension PronunciationIssue: Hashable {
+extension PronunciationIssue {
     static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.word == rhs.word && lhs.timestamp == rhs.timestamp
     }
@@ -61,7 +61,7 @@ extension PronunciationIssue: Hashable {
     }
 }
 
-extension AudioHighlightSegment: Hashable {
+extension AudioHighlightSegment {
     static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.startTime == rhs.startTime && lhs.duration == rhs.duration
     }

@@ -4,23 +4,9 @@
 //
 //  Created by Theona Arlinton on 08/06/26.
 //
-//
-//  ReviewSummaryView.swift
-//  Paralinguistic
-//
-//
-//  ReviewSummaryView.swift
-//  CL3-Bebas
-//
-//  Created by Theona Arlinton on 08/06/26.
-//
-//
-//  ReviewSummaryView.swift
-//  Paralinguistic
-//
 
 import SwiftUI
-
+import SwiftData
 
 struct ReviewSummaryView: View {
 
@@ -31,8 +17,22 @@ struct ReviewSummaryView: View {
 
     @StateObject private var player = FullRecordingPlayer()
     @Environment(\.dismiss) private var dismiss
-    @State private var recordingTitle: String = "Title Recording 1"
+    @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var historyStore: HistoryStore
+
+    /// Local working copy of the title. Initialised from the
+    /// persisted `RecordingHistoryModel.title` (when the result was
+    /// re-hydrated from SwiftData via `toAnalysisResult()`) or
+    /// from a generated default when the result is ephemeral
+    /// (e.g. live analysis from the recording flow).
+    @State private var recordingTitle: String = ""
     @State private var isEditingTitle: Bool = false
+
+    /// The `RecordingHistoryModel` row this review corresponds to,
+    /// resolved once on appear. We don't pass it through the
+    /// `AnalysisResult` directly because the result is a value type
+    /// that can survive outside SwiftData contexts (e.g. Previews).
+    @State private var persistedModel: RecordingHistoryModel?
 
     // MARK: Derived values
 
@@ -100,7 +100,42 @@ struct ReviewSummaryView: View {
         // Hide the bottom bar (Home / History / Mic) on the review
         // screens so only the native back chevron is available.
         .toolbar(.hidden, for: .bottomBar)
+        .onAppear {
+            // Wire up the model context the first time we render.
+            // (`historyStore` is created via `@StateObject` in
+            // `AppRootView`; its `ModelContext` is injected via
+            // `configure(modelContext:)` on first use.)
+            historyStore.configure(modelContext: modelContext)
+
+            // Look up the persisted `RecordingHistoryModel` (if any)
+            // and seed the editable title from it. This is what
+            // makes the title field show "Recording 1" when the user
+            // opens a row from History, instead of the previous
+            // hard-coded "Title Recording 1".
+            if persistedModel == nil, let id = result.id {
+                let descriptor = FetchDescriptor<RecordingHistoryModel>(
+                    predicate: #Predicate { $0.id == id }
+                )
+                persistedModel = try? modelContext.fetch(descriptor).first
+                if let persistedModel {
+                    recordingTitle = persistedModel.title
+                }
+            }
+
+            // `result.audioFileURL` is `URL?` but `FullRecordingPlayer.load`
+            // takes a non-optional `URL` — unwrap here and skip the
+            // load if there is no audio file (e.g. ephemeral result
+            // from a pre-SwiftData code path).
+            if let audioURL = result.audioFileURL {
+                player.load(url: audioURL, duration: result.duration)
+            }
+        }
         .onDisappear {
+            // If the user edited the title but never tapped
+            // "Done" / `submit`, save the latest value before
+            // the view goes away. `rename(...)` is a no-op when
+            // the value is unchanged so this is cheap.
+            commitTitleIfNeeded()
             player.stop()
         }
     }
@@ -115,12 +150,15 @@ struct ReviewSummaryView: View {
                             .font(Text.TitleRegular)
                             .foregroundStyle(.black)
                             .submitLabel(.done)
-                            .onSubmit { isEditingTitle = false }
+                            .onSubmit {
+                                commitTitleIfNeeded()
+                                isEditingTitle = false
+                            }
                     } else {
-                        Text(recordingTitle)
+                        Text(recordingTitle.isEmpty ? "Recording" : recordingTitle)
                             .font(Text.TitleRegular)
                             .foregroundStyle(.black)
-                        
+
                         Button {
                             isEditingTitle = true
                         } label: {
@@ -131,7 +169,7 @@ struct ReviewSummaryView: View {
                         .buttonStyle(.plain)
                     }
 
-                    
+
                 }
 
                 Text(recordingDateString)
@@ -166,13 +204,8 @@ struct ReviewSummaryView: View {
                 .padding(.top, 12)
         }
         .padding(.horizontal, 20)
-        .onAppear {
-            if let url = result.audioFileURL {
-                player.load(url: url, duration: result.duration)
-            }
-        }
     }
-    
+
     private var scoreBreakdown: some View {
         VStack(alignment: .leading, spacing: 0) {
             sectionLabel("SCORE BREAKDOWN")
@@ -216,7 +249,23 @@ struct ReviewSummaryView: View {
             .padding(.horizontal, 20)
         }
     }
-    
+
+
+    // MARK: Title persistence
+
+    /// Persist any in-flight title edit to SwiftData. Safe to call
+    /// from multiple places (`.onSubmit`, `.onDisappear`, focus
+    /// loss) — the underlying `HistoryStore.rename(...)` is a no-op
+    /// when the value hasn't changed.
+    private func commitTitleIfNeeded() {
+        guard let persistedModel else { return }
+        let updated = historyStore.rename(model: persistedModel, to: recordingTitle)
+        if updated != recordingTitle {
+            // Sync the local @State with whatever the store ended
+            // up persisting (e.g. trimmed whitespace).
+            recordingTitle = updated
+        }
+    }
 
     // MARK: Helpers
 
@@ -228,7 +277,7 @@ struct ReviewSummaryView: View {
             .tracking(1.2)
             .padding(.horizontal, 20)
     }
-    
+
     // MARK: Color Tokens
     private var intonationColors: (foreground: Color, background: Color) {
         if result.intonationLabel.localizedCaseInsensitiveContains("flat") {
@@ -260,25 +309,41 @@ struct ReviewSummaryView: View {
 // MARK: - Preview
 
 #Preview {
-    NavigationStack {
-        ReviewSummaryView(
-            result: AnalysisResult(
-                transcription: "Selamat pagi",
-                duration: 20,
-                wordsPerMinute: 175,
-                paceLabel: "Too Fast",
-                averageAmplitudeDB: -22,
-                volumeLabel: "Good",
-                pitchSamples: [],
-                pitchVariance: 600,
-                intonationLabel: "Varied",
-                amplitudeSamples: [],
-                articulationScore: 0.43,
-                pronunciationIssues: [],
-                audioFileURL: nil,
-                intonationHighlight: nil,
-                paceHighlight: nil
-            )
-        )
+    // In-memory SwiftData store with one row so the title
+    // persistence path is exercised in previews.
+    let config = ModelConfiguration(isStoredInMemoryOnly: true)
+    let container = try! ModelContainer(
+        for: RecordingHistoryModel.self,
+        configurations: config
+    )
+    let context = ModelContext(container)
+    let now = Date()
+    let model = RecordingHistoryModel(
+        title: "Recording 1",
+        date: now,
+        duration: 20,
+        issues: [.intonation, .articulation],
+        languageCode: "en",
+        transcription: "Selamat pagi",
+        wordsPerMinute: 175,
+        paceLabel: "Too Fast",
+        averageAmplitudeDB: -22,
+        volumeLabel: "Good",
+        pitchSamples: [],
+        pitchVariance: 600,
+        intonationLabel: "Varied",
+        amplitudeSamples: [],
+        articulationScore: 0.43,
+        pronunciationIssues: [],
+        intonationHighlight: nil,
+        paceHighlight: nil,
+        audioFileRelativePath: nil
+    )
+    context.insert(model)
+    try? context.save()
+
+    return NavigationStack {
+        ReviewSummaryView(result: model.toAnalysisResult())
+            .modelContainer(container)
     }
 }

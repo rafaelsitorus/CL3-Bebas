@@ -27,6 +27,11 @@ extension Color {
     static let PrimaryAppColor = Color(.blue)
     static let TextAppColor = Color("#141B22")
     
+    // For analysis
+    static let MainRedAnalysis = Color("#FF393C")
+    static let BarGreenAnalysis = Color("#6ED8A9")
+    static let MainGreenAnalysis = Color("#0E9E5E")
+    
     // Accent
     static let whiteSC = Color("#FFFFFF")
     static let lightGrayBC = Color("#F9F9F9")

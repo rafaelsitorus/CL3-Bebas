@@ -25,7 +25,7 @@ struct AnalysisCategoryCard: View {
 
             Image(systemName: icon)
                 .font(.system(size: 20))
-                .foregroundStyle(.black)
+                .foregroundStyle(Color.PrimaryAppColor)
                 .frame(width: 44, height: 44)
 
             VStack(alignment: .leading, spacing: 4) {

@@ -13,6 +13,7 @@ enum AppIcon {
     static let pauseIcon = "pause.fill"
     static let playIcon = "play.fill"
     static let bulbIcon = "lightbulb.min.badge.exclamationmark"
+    static let editPencil = "pencil.line"
     
     static let searchIcon = "magnifyingglass"
     static let editIcon = "ellipsis"

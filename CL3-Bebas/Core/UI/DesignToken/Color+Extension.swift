@@ -23,8 +23,12 @@ extension Color {
     static let DarkGreen = Color("#044525")
     static let TintGreen = Color("#E8FCF2")
     
-    static let whiteSC = Color("#FFFFFF")
+    // primary used color
+    static let PrimaryAppColor = Color(.blue)
+    static let TextAppColor = Color("#141B22")
     
+    // Accent
+    static let whiteSC = Color("#FFFFFF")
     static let lightGrayBC = Color("#F9F9F9")
     
     init(_ hex: String) {

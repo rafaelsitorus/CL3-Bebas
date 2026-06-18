@@ -22,6 +22,7 @@
 
 import Foundation
 import SwiftData
+import SwiftUI
 
 /// Persisted record of a single completed pitch. One row per recording.
 ///
@@ -206,6 +207,52 @@ final class RecordingHistoryModel {
             in: .userDomainMask
         ).first
         return docs?.appendingPathComponent(audioFileRelativePath)
+    }
+
+    // MARK: - Computed: Overall Score & Labels
+
+    /// Integer percentage (0–100) for display purposes.
+    var overallScorePercent: Int {
+        Int((overallScore * 100).rounded())
+    }
+
+    /// Human-readable articulation label that matches `ReviewSummaryView`.
+    var articulationDisplayLabel: String {
+        switch articulationScore {
+        case 0.85...: return "Excellent"
+        case 0.70...: return "Good"
+        case 0.55...: return "Fair"
+        default:      return "Unclear"
+        }
+    }
+
+    // MARK: - Computed: Label Colors
+    // These replicate the colour logic from `ReviewSummaryView` so the
+    // History card can show red/green badges without rebuilding
+    // `AnalysisResult`.
+
+    /// Returns (foreground, background) colour pair for the intonation label.
+    var intonationColors: (foreground: Color, background: Color) {
+        intonationLabel.localizedCaseInsensitiveContains("flat")
+            ? (.DarkRed, .TintRed)
+            : (.DarkGreen, .TintGreen)
+    }
+
+    /// Returns (foreground, background) colour pair for the pace label.
+    var paceColors: (foreground: Color, background: Color) {
+        let p = paceLabel.lowercased()
+        if p.contains("ideal") || p.contains("normal") {
+            return (.DarkGreen, .TintGreen)
+        } else {
+            return (.DarkRed, .TintRed)
+        }
+    }
+
+    /// Returns (foreground, background) colour pair for the articulation label.
+    var articulationColors: (foreground: Color, background: Color) {
+        articulationScore >= 0.70
+            ? (.DarkGreen, .TintGreen)
+            : (.DarkRed, .TintRed)
     }
 
     /// Reconstruct the in-memory `AnalysisResult` shape that the rest

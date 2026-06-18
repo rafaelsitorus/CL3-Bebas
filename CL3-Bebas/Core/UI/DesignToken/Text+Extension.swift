@@ -38,6 +38,9 @@ extension Text {
     
     // Footnote
     static let CustomFootnote    = Font.system(.footnote).weight(.regular)
+    
+    // Caption
+    static let CustomCaption = Font.system(.caption).weight(.regular)
 }
 
 struct CustomExpandedBT: ViewModifier {

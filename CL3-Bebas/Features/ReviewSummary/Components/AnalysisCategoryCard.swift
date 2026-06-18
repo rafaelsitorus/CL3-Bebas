@@ -30,25 +30,25 @@ struct AnalysisCategoryCard: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(.black)
 
                 Text(subtitle)
-                    .font(.system(size: 14))
+                    .font(.system(size: 13))
                     .foregroundStyle(.secondary)
             }
 
             Spacer()
 
             Text(label)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: 13, weight: .regular))
                 .frame(width: 86, height: 28)
                 .foregroundStyle(labelForegroundColor)
                 .background(labelBackgroundColor)
                 .clipShape(Capsule())
 
-            Image(systemName: "chevron.right")
-                .font(.system(size: 13, weight: .regular))
+            Image(systemName: AppIcon.chevronRightIcon)
+                .font(.system(size: 20, weight: .regular))
                 .foregroundStyle(.black)
         }
         .padding(.horizontal, 18)

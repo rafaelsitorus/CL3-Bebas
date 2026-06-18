@@ -74,38 +74,29 @@ private struct EditableTitleRow: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 8) {
-            if isFocused {
-                TextField("Recording title", text: $title)
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundStyle(.primary)
-                    .focused($isFocused)
-                    .submitLabel(.done)
-                    .onSubmit { isFocused = false }
-            } else {
-                Text(title.isEmpty ? "Untitled" : title)
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    // Tapping the text itself also activates editing
-                    .onTapGesture { isFocused = true }
-            }
+            TextField("Untitled", text: $title)
+                .font(.system(size: 28, weight: .bold))
+                .foregroundStyle(.primary)
+                .focused($isFocused)
+                .submitLabel(.done)
+                .onSubmit { isFocused = false }
+                .fixedSize(horizontal: true, vertical: false)
+                .lineLimit(1)
+                .truncationMode(.tail)
 
             Button {
                 isFocused = true
             } label: {
                 Image(systemName: AppIcon.editPencil.description)
-                    .font(.system(size: 17))
+                    .font(Text.CustomHeadlineTextRegular)
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
         }
-        // Tapping anywhere on the row (including whitespace) activates editing
         .contentShape(Rectangle())
         .onTapGesture { isFocused = true }
     }
 }
-
 // MARK: - Language Picker Card
 
 private struct LanguagePickerCard: View {

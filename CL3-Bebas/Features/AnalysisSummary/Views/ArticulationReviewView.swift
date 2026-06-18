@@ -115,7 +115,7 @@ struct ArticulationReviewView: View {
                         .font(Text.CustomHeadline)
                         .foregroundStyle(.white)
                     Spacer()
-                    Image(systemName: "chevron.right")
+                    Image(systemName: AppIcon.chevronRightIcon)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.white)
                 }

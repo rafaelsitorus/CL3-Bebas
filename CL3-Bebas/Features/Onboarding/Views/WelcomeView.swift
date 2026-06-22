@@ -20,11 +20,13 @@ struct WelcomeView: View {
                     .resizable()
                     .scaledToFit()
                     .frame(width: 80, height: 80)
+                    .cornerRadius(15)
+                    
                 Text("Spitch")
-                    .font(Text.CustomLargeTitle)
+                    .font(Text.TitleRegular)
                 Text("Time to experience personal analysis pitch")
-                    .font(Text.OnboardingCaption)
-                    .foregroundColor(Color.GreyAccentSC)
+                    .font(Text.CustomHeadlineTextRegular)
+                    .foregroundColor(Color.primary)
                     .multilineTextAlignment(.center)
             }
 

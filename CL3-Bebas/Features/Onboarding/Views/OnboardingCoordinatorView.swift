@@ -5,7 +5,6 @@
 //  Created by Theona Arlinton on 08/06/26.
 //
 
-// OnboardingCoordinatorView.swift
 import SwiftUI
 
 struct OnboardingCoordinatorView: View {
@@ -13,13 +12,6 @@ struct OnboardingCoordinatorView: View {
     var onFinish: () -> Void
 
     var body: some View {
-        // The entire onboarding flow is a clean wizard — no top
-        // navigation bar and no bottom toolbar. We use the modern
-        // `.toolbar(.hidden, for: .navigationBar)` API (the older
-        // `.navigationBarHidden(true)` is deprecated and can be
-        // ignored on iOS 17+ when children add toolbar items) and
-        // hide the bottom bar explicitly so it never appears in the
-        // onboarding wizard.
         WelcomeView(
             onContinue: { viewModel.path.append(OnboardingStep.language) },
             onSkip: { onFinish() }

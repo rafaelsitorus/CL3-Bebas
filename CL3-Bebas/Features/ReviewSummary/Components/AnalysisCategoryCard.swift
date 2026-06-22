@@ -15,8 +15,8 @@ struct AnalysisCategoryCard: View {
     let title: String
     let subtitle: String
     let label: String
-    var labelForegroundColor: Color = .black
-    var labelBackgroundColor: Color = Color.black.opacity(0.05)
+    var labelForegroundColor: Color = .primary
+    var labelBackgroundColor: Color = Color.primary.opacity(0.05)
 
     // MARK: Body
 
@@ -31,7 +31,7 @@ struct AnalysisCategoryCard: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(.black)
+                    .foregroundStyle(.primary)
 
                 Text(subtitle)
                     .font(.system(size: 13))
@@ -49,14 +49,14 @@ struct AnalysisCategoryCard: View {
 
             Image(systemName: AppIcon.chevronRightIcon)
                 .font(.system(size: 20, weight: .regular))
-                .foregroundStyle(.black)
+                .foregroundStyle(.primary)
         }
         .padding(.horizontal, 18)
         .frame(height: 90)
         .background(Color.white)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.black, lineWidth: 0.3)
+                .stroke(Color.primary, lineWidth: 0.3)
         )
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }

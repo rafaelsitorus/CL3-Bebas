@@ -115,7 +115,9 @@ final class RecordingHistoryModel {
     /// audio file. Storing a relative path keeps the database valid
     /// across app updates where the container path may change.
     var audioFileRelativePath: String?
-
+    
+    
+    // Dikasih Enviroment instead of init ketika banyak hal yg mau disimpan
     init(
         id: UUID = UUID(),
         title: String,

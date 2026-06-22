@@ -33,9 +33,6 @@
 				Features/Home/Components/.gitkeep,
 				Features/Home/ViewModels/.gitkeep,
 				Features/Home/Views/.gitkeep,
-				Features/Onboarding/Components/.gitkeep,
-				Features/Onboarding/ViewModels/.gitkeep,
-				Features/Onboarding/Views/.gitkeep,
 				Features/Recording/Components/.gitkeep,
 				Features/Recording/ViewModels/.gitkeep,
 				Features/Recording/Views/.gitkeep,
@@ -297,6 +294,7 @@
 				DEVELOPMENT_TEAM = 6B6C8QFG49;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Spitch;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Spitch requires microphone to record your voice and analyse it based on paralinguistic aspects.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Convert speech to text for feedback.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -331,6 +329,7 @@
 				DEVELOPMENT_TEAM = 6B6C8QFG49;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Spitch;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Spitch requires microphone to record your voice and analyse it based on paralinguistic aspects.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Convert speech to text for feedback.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

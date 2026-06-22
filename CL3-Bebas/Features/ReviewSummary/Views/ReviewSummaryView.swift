@@ -148,7 +148,7 @@ struct ReviewSummaryView: View {
                     if isEditingTitle {
                         TextField("Recording title", text: $recordingTitle)
                             .font(Text.TitleRegular)
-                            .foregroundStyle(.black)
+                            .foregroundStyle(.primary)
                             .submitLabel(.done)
                             .onSubmit {
                                 commitTitleIfNeeded()

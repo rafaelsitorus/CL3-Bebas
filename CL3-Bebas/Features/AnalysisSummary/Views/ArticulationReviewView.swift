@@ -16,12 +16,14 @@ struct ArticulationReviewView: View {
         Int((result.articulationScore * 100).rounded())
     }
 
-    private var scaleFraction: Double {
-        Double(1 - result.articulationScore).clamped(to: 0...1)
-    }
-    
     private var inaccuracyPercent: Int { Int(((1 - result.articulationScore) * 100).rounded()) }
-    private var inaccuracyFraction: Double { Double(1 - result.articulationScore) }
+
+    /// Maps inaccuracy to 0–50% scale for the bar display.
+    /// The bar represents 0% to 50% inaccuracy; values above 50%
+    /// pin to the right edge.
+    private var scaleFraction: Double {
+        Double(min(inaccuracyPercent, 50)) / 50.0
+    }
 
 
     // MARK: Body
@@ -32,24 +34,11 @@ struct ArticulationReviewView: View {
                 sectionLabel("ANALYSIS")
                 headerRow
                 AnalysisScaleView(
-                    fraction: inaccuracyFraction,
-                    ticks: [
-                        ScaleTick(fraction: 0.0,
-                                  label: "0%",
-                                  isBold: false),
-                        ScaleTick(fraction: 0.25,
-                                  label: "25%",
-                                  isBold: false),
-                        ScaleTick(fraction: inaccuracyFraction,
-                                  label: "\(inaccuracyPercent)%",
-                                  isBold: true),
-                        ScaleTick(fraction: 1.0,
-                                  label: "100%",
-                                  isBold: false),
-                    ],
+                    fraction: scaleFraction,
+                    ticks: scaleTicks,
                     leadingLabel: "Clear",
                     trailingLabel: "Unclear",
-                    highlightRange: 0.0...0.25,              // green = the clear zone (left side)
+                    highlightRange: 0.0...0.50,              // green = 0%–25% inaccuracy on 0–50 scale
                     highlightColor: Color.BarGreenAnalysis,
                     dotColor: articulationColor,
                     activeEndpoint: inaccuracyPercent > 25 ? .trailing : .leading
@@ -147,6 +136,28 @@ struct ArticulationReviewView: View {
     }
     private var articulationColor: Color {
         inaccuracyPercent > 25 ? Color.MainRedAnalysis : Color.MainGreenAnalysis
+    }
+
+    /// Build scale ticks for the 0%–50% bar, avoiding overlapping labels.
+    /// Always show 0%, 25%, and 50% ticks, plus the actual inaccuracy%
+    /// tick if it doesn't collide with any of the fixed ticks.
+    private var scaleTicks: [ScaleTick] {
+        var ticks: [ScaleTick] = [
+            ScaleTick(fraction: 0.0, label: "0%", isBold: false),
+            ScaleTick(fraction: 0.50, label: "25%", isBold: false),
+            ScaleTick(fraction: 1.0, label: "50%", isBold: false),
+        ]
+        // Add the actual inaccuracy tick if it doesn't overlap with fixed ticks.
+        // "Overlap" is defined as being within 0.08 fraction units of a fixed tick.
+        let actualFraction = scaleFraction
+        let fixedFractions: [Double] = [0.0, 0.50, 1.0]
+        let tooClose = fixedFractions.contains { abs($0 - actualFraction) < 0.08 }
+        if !tooClose {
+            ticks.append(ScaleTick(fraction: actualFraction,
+                                   label: "\(inaccuracyPercent)%",
+                                   isBold: true))
+        }
+        return ticks
     }
 
     // MARK: Copy

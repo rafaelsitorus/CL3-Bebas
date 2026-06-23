@@ -112,14 +112,39 @@ private struct UnclearWordRow: View {
     let isExpanded: Bool
     let onToggle: () -> Void
 
+    /// Header color: dual-path issues (acoustic ≠ reference) are red
+    /// because they represent a confirmed mismatch; legacy low-confidence
+    /// issues stay on the default secondary tone.
+    private var headerColor: Color {
+        issue.isMispronounced ? .red : (isExpanded ? .red : .black)
+    }
+
+    /// Only show the "heard: '…'" caption when the dual-path pipeline
+    /// told us what the acoustic model actually heard AND it differs
+    /// from the reference form.
+    private var shouldShowAcousticCaption: Bool {
+        guard let acoustic = issue.acousticWord, !acoustic.isEmpty,
+              let reference = issue.referenceWord, !reference.isEmpty else {
+            return false
+        }
+        return acoustic.lowercased() != reference.lowercased()
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header — tap to expand / collapse
             Button(action: onToggle) {
-                HStack {
-                    Text(issue.word.prefix(1).uppercased() + issue.word.dropFirst())
-                        .font(Text.CustomExpandedT2)
-                        .foregroundStyle(isExpanded ? .red : .black)
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(issue.word.prefix(1).uppercased() + issue.word.dropFirst())
+                            .font(Text.CustomExpandedT2)
+                            .foregroundStyle(headerColor)
+                        if shouldShowAcousticCaption, let acoustic = issue.acousticWord {
+                            Text("Heard: “\(acoustic)”")
+                                .font(Text.CustomFootnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                     Spacer()
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                         .font(.subheadline.weight(.semibold))
@@ -214,8 +239,11 @@ private struct SentencePlaybackCard: View {
         }
     }
 
-    /// Builds sentence text with `highlightedWord` in bold,
-    /// case-insensitively — matches the mockup "**cooking**" style.
+    /// Builds sentence text with `highlightedWord` highlighted in red
+    /// AND bold. We use `AttributedString` (rather than nested `Text`)
+    /// so the colour is preserved inside italic — `Text(…).bold()` does
+    /// not allow a custom foreground colour to coexist with the parent
+    /// italic context.
     private var highlightedText: Text {
         let text = sentence.text
         let target = sentence.highlightedWord
@@ -224,11 +252,28 @@ private struct SentencePlaybackCard: View {
               let range = text.range(of: target, options: .caseInsensitive)
         else { return Text(text) }
 
-        let before = String(text[text.startIndex..<range.lowerBound])
-        let match  = String(text[range])
-        let after  = String(text[range.upperBound...])
+        var attributed = AttributedString(String(text[text.startIndex..<range.lowerBound]))
+        var match = AttributedString(String(text[range]))
+        match.foregroundColor = .red
+        match.font = .system(size: 16, weight: .bold, design: .default).italic()
+        attributed.append(match)
+        attributed.append(AttributedString(String(text[range.upperBound...])))
 
-        return Text("\(before)\(Text(match).bold())\(after)")
+        // Italicise the rest of the sentence too, to match the parent
+        // `.italic()` modifier in the call site.
+        var full = AttributedString()
+        let baseFont = Font.system(size: 16, design: .default).italic()
+        for run in attributed.runs {
+            var copy = attributed[run.range]
+            copy.font = baseFont
+            full.append(copy)
+        }
+        // Re-apply red+bold to the matched run on top of the italic.
+        if let matchRun = full.range(of: target, options: .caseInsensitive) {
+            full[matchRun].foregroundColor = .red
+            full[matchRun].font = .system(size: 16, weight: .bold, design: .default).italic()
+        }
+        return Text(full)
     }
 }
 

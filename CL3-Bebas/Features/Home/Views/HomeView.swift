@@ -9,15 +9,6 @@ import SwiftUI
 import SwiftData
 
 struct HomeView: View {
-
-    /// The user's recordings, newest first. `@Query` keeps this in
-    /// sync with SwiftData — every time a new
-    /// `RecordingHistoryModel` is inserted (e.g. after a fresh
-    /// recording finishes analysis), the view re-renders
-    /// automatically. We take the first 5 for the analytics
-    /// (matching the product spec: "average of the latest 5
-    /// pitches, or fewer if the user has recorded less").
-
     @Query(sort: [SortDescriptor(\RecordingHistoryModel.date, order: .reverse)])
     private var allRecordings: [RecordingHistoryModel]
 
@@ -67,14 +58,6 @@ struct HomeView: View {
     }
 
     private var emptyState: some View {
-        // Empty state for the Home tab. The user has zero
-        // recordings, so the analytics / per-metric cards are
-        // meaningless — we hide them and show a single
-        // illustration + CTA pointing them at the mic button on
-        // the bottom bar. The illustration is the `imageHomeScreen`
-        // asset that already exists in `Assets.xcassets` (see
-        // `AppImage.homeScreenIllust`).
-
         GeometryReader { geometry in
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .center, spacing: 0) {
@@ -134,19 +117,23 @@ struct HomeView: View {
                         .padding(.leading)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
-                    HStack {
-                        Text("\(overallPercent)").customExpandedBT(size: 90)
+                    HStack(alignment: .lastTextBaseline, spacing: 4) {
+                        Text("\(overallPercent)")
+                            .customExpandedBT(size: 90)
+                            .minimumScaleFactor(0.5)
+                            .lineLimit(1)
                             .padding(.leading)
 
-                        VStack {
+                        VStack(alignment: .leading, spacing: 2) {
                             Text("%")
                                 .customExpandedBT(size: 25)
-                                .frame(maxWidth: .infinity, alignment: .leading)
 
                             Text(categoryLabel)
                                 .font(Text.CustomExpandedT2)
-                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
+                        .alignmentGuide(.lastTextBaseline) { d in d[.lastTextBaseline] }
+
+                        Spacer()
                     }
 
                     PartitionedProgressBar(value: overallProgressValue)
@@ -155,7 +142,7 @@ struct HomeView: View {
 
                     Text(pitchPerformanceText)
                         .font(Text.CustomBody)
-                        .padding(.leading)
+                        .padding(.horizontal)
                         .padding(.bottom, 32)
 
                     // ── Per-metric cards ────────────────────────────
@@ -336,12 +323,12 @@ struct PartitionedProgressBar: View {
             paceLabel: "Too Fast",
             averageAmplitudeDB: -20,
             volumeLabel: "Good",
-            overallScore: 0.55,
+            overallScore: 1.00,
             pitchSamples: [],
             pitchVariance: 600,
             intonationLabel: "Flat",
             amplitudeSamples: [],
-            articulationScore: 0.78,
+            articulationScore: 1.00,
             pronunciationIssues: [],
             intonationHighlight: nil,
             paceHighlight: nil,
@@ -358,12 +345,12 @@ struct PartitionedProgressBar: View {
             paceLabel: "Ideal",
             averageAmplitudeDB: -22,
             volumeLabel: "Good",
-            overallScore: 0.70,
+            overallScore: 1.00,
             pitchSamples: [],
             pitchVariance: 400,
             intonationLabel: "Expressive",
             amplitudeSamples: [],
-            articulationScore: 0.72,
+            articulationScore: 1.00,
             pronunciationIssues: [],
             intonationHighlight: nil,
             paceHighlight: nil,
@@ -380,7 +367,7 @@ struct PartitionedProgressBar: View {
             paceLabel: "Normal",
             averageAmplitudeDB: -25,
             volumeLabel: "Good",
-            overallScore: 0.78,
+            overallScore: 1.00,
             pitchSamples: [],
             pitchVariance: 250,
             intonationLabel: "Expressive",

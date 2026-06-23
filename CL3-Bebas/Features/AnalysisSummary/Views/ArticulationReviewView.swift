@@ -73,12 +73,24 @@ struct ArticulationReviewView: View {
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 4) {
-                Text("\(inaccuracyPercent)%")
-                    .font(Text.CustomLargeTitle)
-                    .foregroundStyle(inaccuracyPercent > 25 ? Color.MainRedAnalysis : Color.MainGreenAnalysis)
-                Text("INACCURACY")
-                    .font(Text.CustomFootnote)
-                    .foregroundStyle(.secondary)
+                // No reference transcript → show "—" instead of a
+                // misleading 100% inaccuracy. The explanation block
+                // below tells the user why.
+                if result.articulationScore == 0.0 && result.pronunciationIssues.isEmpty {
+                    Text("—")
+                        .font(Text.CustomLargeTitle)
+                        .foregroundStyle(.secondary)
+                    Text("UNAVAILABLE")
+                        .font(Text.CustomFootnote)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("\(inaccuracyPercent)%")
+                        .font(Text.CustomLargeTitle)
+                        .foregroundStyle(inaccuracyPercent > 25 ? Color.MainRedAnalysis : Color.MainGreenAnalysis)
+                    Text("INACCURACY")
+                        .font(Text.CustomFootnote)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
     }
@@ -168,6 +180,14 @@ struct ArticulationReviewView: View {
         let unclearPercent = totalWords > 0
             ? Int((Float(unclearCount) / Float(totalWords)) * 100)
             : 0
+
+        // No reference transcript available (e.g. SFSpeech "Siri &
+        // Dictation are disabled") — the pipeline returns 0.0 with an
+        // empty issues list. Don't show "all words unclear" copy; tell
+        // the user what to do instead.
+        if result.articulationScore == 0.0 && result.pronunciationIssues.isEmpty {
+            return "Articulation scoring needs Apple's speech recogniser, which is turned off on this device. Open Settings → Siri & Dictation and turn it on, then re-record."
+        }
 
         switch result.articulationScore {
         case 0.90...:

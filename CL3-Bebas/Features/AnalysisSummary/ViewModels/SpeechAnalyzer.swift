@@ -275,17 +275,29 @@ class SpeechAnalyzer: ObservableObject {
                             recordingDuration: duration
                         )
 
-                        let scorable = assessments.filter { $0.decision != .unknownName }
-                        let matchedCount = scorable.filter { $0.decision == .match }.count
-                        let avgSim: Float = scorable.isEmpty ? 0.0 :
-                            scorable.map { $0.similarity }.reduce(0, +) / Float(scorable.count)
-                        let matchRate: Float = scorable.isEmpty ? 0.0 :
-                            Float(matchedCount) / Float(scorable.count)
+                        // Gate metrics use the FULL assessment set (not
+                        // just scorable) so a model that simply fails to
+                        // detect words still looks unreliable here.
+                        //
+                        // Thresholds are intentionally loose: the legacy
+                        // SFSpeech-confidence fallback is broken for id-ID
+                        // (returns mean=0/sd=0, flags every word), so we
+                        // only fall back when the acoustic model is clearly
+                        // producing nothing useful — i.e. zero matches
+                        // and an avgSim dragged down by all-zero unknowns.
+                        let matchedCount = assessments.filter { $0.decision == .match }.count
+                        let avgSim: Float = assessments.isEmpty ? 0.0 :
+                            assessments.map { $0.similarity }.reduce(0, +) / Float(assessments.count)
+                        let matchRate: Float = assessments.isEmpty ? 0.0 :
+                            Float(matchedCount) / Float(assessments.count)
 
+                        // Only mark unreliable if the model produced
+                        // essentially nothing (0% match rate) AND
+                        // similarity is near zero. A 38% match rate
+                        // (11/19) at avgSim=0.28 is still a usable
+                        // dual-path result — don't throw it away.
                         let isUnreliable = assessments.isEmpty
-                            || scorable.isEmpty
-                            || avgSim < 0.20
-                            || matchRate < 0.40
+                            || (matchRate == 0.0 && avgSim < 0.10)
 
                         if !isUnreliable {
                             return ArticulationPipelineSpeech.runDualPath(
@@ -299,13 +311,23 @@ class SpeechAnalyzer: ObservableObject {
                     }
 
                     // ── Case 2: SFSpeech empty but acoustic works ───
-                    // Use average acoustic confidence as a rough
-                    // articulation score. This is imperfect but much
-                    // better than 0% or 50% with no feedback.
+                    // SFSpeech can fail entirely ("Siri and Dictation are
+                    // disabled" in iOS Settings), leaving segments empty.
+                    // Without a reference transcript there is no way to
+                    // score articulation — we have nothing to compare the
+                    // acoustic output against. Returning a score derived
+                    // from acoustic confidence alone is misleading
+                    // (Wav2Vec2 top-1 beam confidence sits at ~0.95+ for
+                    // any word it recognises, vocabulary word or not).
+                    //
+                    // We still surface the acoustic transcript for pace
+                    // and mumbling detection in the rest of the
+                    // pipeline — but the articulation score stays at 0.0
+                    // until a reference is available.
                     if segments.isEmpty && !transcript.words.isEmpty {
                         let avgConf = transcript.words.map { $0.confidence }.reduce(0, +) / Float(transcript.words.count)
-                        print("🗣️ SFSpeech empty — using acoustic confidence: avgConf=\(String(format: "%.2f", avgConf)) over \(transcript.words.count) words")
-                        return (avgConf, [])
+                        print("🗣️ SFSpeech unavailable (Siri & Dictation disabled?) — acoustic transcript has \(transcript.words.count) words (avgConf=\(String(format: "%.2f", avgConf))). Returning articulation score 0.0; no reference to compare against.")
+                        return (0.0, [])
                     }
                 } catch {
                     print("⚠️ Acoustic path failed (\(error)) — falling back to legacy")

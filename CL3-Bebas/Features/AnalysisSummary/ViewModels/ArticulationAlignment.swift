@@ -172,6 +172,67 @@ enum EditDistance {
         guard longer.contains(shorter) else { return 0 }
         return Float(shorter.count) / Float(longer.count)
     }
+
+    /// Score in `[0, 1]` measuring how much of `a` appears inside `b`
+    /// as a SUBSEQUENCE (not necessarily contiguous). Used as a
+    /// character-level fallback when a ref word was clearly spoken but
+    /// the CTC decoder inserted/deleted a few characters, e.g. acoustic
+    /// "kitaa" for ref "kita" (extra 'a'), or acoustic "disubelah"
+    /// (CTC merge of "di" + "sebelah") where ref "di" still appears
+    /// cleanly as a prefix.
+    ///
+    /// Scoring rules:
+    /// - All of `a` matched inside `b` → return `ref.count / hyp.count`
+    ///   so a clean subsequence inside a short hyp (e.g. "di" inside
+    ///   "di" → 1.0) scores high, while a clean subsequence inside a
+    ///   long merged hyp (e.g. "di" inside "disubelah" → 2/9 ≈ 0.22)
+    ///   is still rewarded but at the cost of the extra acoustic
+    ///   material that the model merged in.
+    /// - Partial match (more than half of `a`'s chars present in order
+    ///   but not all of them) → use `(matched/ref.count)^2 * (matched/hyp.count)`
+    ///   so partial matches are gently scored but never above 1.0 and
+    ///   never compete with a clean containment hit.
+    /// - Less than half of `a`'s chars matched → return 0.
+    static func subsequenceSimilarity(_ a: String, _ b: String) -> Float {
+        let ac = Array(a.lowercased())
+        let bc = Array(b.lowercased())
+        if ac.isEmpty || bc.isEmpty { return 0 }
+
+        // Walk the ref through hyp, counting how many ref chars appear
+        // in order. Greedy, O(n+m), good enough to spot "the ref word
+        // is in there somewhere" without a full LCS table.
+        var i = 0
+        var matched = 0
+        for ch in bc {
+            if i < ac.count && ch == ac[i] {
+                matched += 1
+                i += 1
+            }
+        }
+        let minMatched = (ac.count + 1) / 2
+        if matched < minMatched { return 0 }
+
+        let hypCoverage = Float(matched) / Float(bc.count)
+        if matched == ac.count {
+            // Full subsequence match — every ref char appears in
+            // order inside hyp, just not necessarily contiguously.
+            // This is the strongest signal the user actually said
+            // the word and the CTC decoder just merged it with a
+            // neighbour. We trust it at full credit: the user spoke
+            // the word clearly, the model's string output just
+            // over-extended across the boundary.
+            //
+            // Example wins:
+            //   "di"   inside "disubelah" → 1.0
+            //   "saya" inside "sayaora"   → 1.0
+            //   "hijau" inside a longer merge → 1.0
+            return 1.0
+        }
+        // Partial subsequence — square the ref coverage to penalise
+        // incomplete matches more harshly than Levenshtein would.
+        let refCoverage = Float(matched) / Float(ac.count)
+        return refCoverage * refCoverage * hypCoverage
+    }
 }
 
 // MARK: - Word-level alignment (the actual pipeline)
@@ -200,13 +261,53 @@ enum ArticulationAlignment {
     //   so they don't penalize the speaker.
 
     /// Similarity at or above this → word pronounced correctly.
-    static let matchThreshold: Float = 0.25
+    /// 0.45 is calibrated for the Wav2Vec2-ID model used here,
+    /// which routinely produces string-level noise like
+    /// "purtunya" for "Fotonya" (lev 0.50) and "mira" for "merah"
+    /// (lev 0.60). The model is hearing the right phonemes but
+    /// emitting them with different character substitutions —
+    /// phonetic normalization in `normalize(...)` brings the
+    /// scores up; this threshold then accepts the surviving
+    /// borderline matches. Going higher (0.55-0.65) flags every
+    /// correctly-spoken word as unknown because the model output
+    /// is never string-identical to the reference.
+    ///
+    /// Containment similarity is folded in (see `run(...)`),
+    /// which can lift a low Levenshtein score when the ref word
+    /// appears as a substring of an acoustic word-merge like
+    /// "kamulusecepat" — that's intentional, those merges are
+    /// legitimate CTC output for fluent speech.
+    static let matchThreshold: Float = 0.45
 
     /// Acoustic confidence below this → genuine mumbling.
     /// Only triggers when confidence > 0 (i.e. the model detected
     /// something, but it was very unclear). When confidence == 0,
     /// the word was simply not detected (unknownName, not mumbling).
-    static let acousticConfidenceFloor: Float = 0.20
+    /// 0.50 is the "model is unsure" floor — values like 0.78-0.86
+    /// that we see on borderline words in the wild still count as
+    /// detected speech, just not confident enough to be a match.
+    static let acousticConfidenceFloor: Float = 0.50
+
+    /// Borderline-similarity floor. When a candidate has sim in
+    /// [borderlineSimFloor, matchThreshold) AND low-ish acoustic
+    /// confidence, we surface it as mispronounced instead of
+    /// unknownName — the model heard something at that position
+    /// but didn't match it cleanly, which is a real signal worth
+    /// showing to the speaker.
+    static let borderlineSimFloor: Float = 0.30
+
+    /// Acoustic confidence ceiling for the borderline rule. Below
+    /// this AND above the sim floor → mispronounced. Above this
+    /// (very confident acoustic) → unknownName (trust the model).
+    static let borderlineConfCeiling: Float = 0.85
+
+    /// How far ABOVE the match threshold a sim can sit while still
+    /// being treated as "close but not confident enough to call a
+    /// match". Combined with low conf this catches things like
+    /// "beliari" (sim 0.57 after phonetic normalisation, conf 0.81)
+    /// for ref "blur" — the strings are similar, the model just
+    /// wasn't sure, so the user gets useful feedback.
+    static let closeMatchBand: Float = 0.20
 
     static func bandDecision(similarity: Float, acousticConfidence: Float) -> ArticulationDecision {
         // ── Category 2: Mumbling (Jelek) ────────────────────────
@@ -221,6 +322,32 @@ enum ArticulationAlignment {
         // The model heard something recognizable. Give the speaker
         // the benefit of the doubt.
         if similarity >= matchThreshold { return .match }
+
+        // ── Category 2b: Borderline Mispronounced (close-but-low) ─
+        // Two flavours of borderline:
+        //
+        // 1. Sim is just under the match threshold (still in the
+        //    uncertain range) AND the acoustic model wasn't very
+        //    confident. The model heard something but didn't match
+        //    it cleanly — the user probably mispronounced the word.
+        //
+        // 2. Sim is in the "close match" band (just above the match
+        //    threshold up to closeMatchBand higher) AND the model
+        //    still wasn't confident. The strings look similar after
+        //    phonetic normalisation but the model is hedging. Worth
+        //    showing the speaker — "blur" vs "beliari" (sim 0.57
+        //    after phonetic, conf 0.81) is exactly this case.
+        if similarity >= borderlineSimFloor
+                && acousticConfidence > 0
+                && acousticConfidence < borderlineConfCeiling {
+            return .mispronounced
+        }
+        if similarity >= matchThreshold
+                && similarity < matchThreshold + closeMatchBand
+                && acousticConfidence > 0
+                && acousticConfidence < borderlineConfCeiling {
+            return .mispronounced
+        }
 
         // ── Category 3: Unknown Name (Diluar dictionary) ────────
         // Everything else: not detected (sim=0.0), foreign names,
@@ -336,8 +463,14 @@ enum ArticulationAlignment {
         // drift (e.g. "dan" matched to "bantu", "bisa" matched to
         // "seiga" while the right acoustic words were still ahead in
         // the candidate list).
-        let jumpBackTolerance: TimeInterval = 2.0
-        let lookahead: Int = 5
+        //
+        // 4s jump-back + 8-candidate lookahead gives the alignment
+        // enough room to recover from CTC truncation at chunk seams
+        // (where a word can land 1-2s before or after where the ref
+        // text places it). The cursor still only moves forward, so
+        // we don't reintroduce the drift the old global window had.
+        let jumpBackTolerance: TimeInterval = 4.0
+        let lookahead: Int = 8
         let minCandidateSim: Float = 0.20
 
         var assessments: [WordAssessment] = []
@@ -368,11 +501,14 @@ enum ArticulationAlignment {
 
             // Within the next `lookahead` candidates, pick the one with
             // the highest similarity to the current ref word. We use
-            // the MAX of Levenshtein similarity and containment
-            // similarity so Wav2Vec2 CTC word-merge cases (e.g. the
-            // model collapsing "my next" into "MYNE" or "a practice"
-            // into "APRACTIC") still score well when the ref word
-            // appears as a substring of the merged acoustic word.
+            // the MAX of Levenshtein similarity, containment
+            // similarity, AND subsequence similarity so Wav2Vec2 CTC
+            // word-merge cases (e.g. the model collapsing "my next"
+            // into "MYNE" or "a practice" into "APRACTIC") still score
+            // well, and so inserted characters in the acoustic form
+            // don't drop the score to zero for what is actually a
+            // recognizable utterance (e.g. acoustic "kitaa" for ref
+            // "kita" is subsequence 0.96, not Levenshtein 0.80).
             let windowEnd = min(candidates.count, searchStart + lookahead)
             var bestSim: Float = -1
             var bestPick: Int? = nil
@@ -381,7 +517,8 @@ enum ArticulationAlignment {
                 let hyp = normalize(candidates[k].word.text)
                 let lev = EditDistance.similarity(ref, hyp)
                 let con = EditDistance.containmentSimilarity(ref, hyp)
-                let sim = max(lev, con)
+                let sub = EditDistance.subsequenceSimilarity(ref, hyp)
+                let sim = max(lev, con, sub)
                 if sim > bestSim {
                     bestSim = sim
                     bestPick = k
@@ -392,12 +529,13 @@ enum ArticulationAlignment {
                 let acWord = candidates[pick].word
                 let ref = normalize(refWord.text)
                 let hyp = normalize(acWord.text)
-                // Use max(Levenshtein, containment) so word-merge
-                // candidates that contain the ref word score the same
+                // Use max(Levenshtein, containment, subsequence) so
+                // word-merge and insert/duplicate cases score the same
                 // way they did at pick time (no surprise demotion).
                 let trueSim = max(
                     EditDistance.similarity(ref, hyp),
-                    EditDistance.containmentSimilarity(ref, hyp)
+                    EditDistance.containmentSimilarity(ref, hyp),
+                    EditDistance.subsequenceSimilarity(ref, hyp)
                 )
                 let decision = bandDecision(
                     similarity: trueSim,
@@ -411,9 +549,17 @@ enum ArticulationAlignment {
                     similarity: trueSim,
                     decision: decision
                 ))
-                // Advance the cursor past the chosen candidate so the
-                // same acoustic word can't be matched twice.
-                acIdx = pick + 1
+                // Only advance the cursor past the chosen candidate
+                // when the alignment is actually confident — otherwise
+                // a borderline match would lock the acoustic word out
+                // from being re-tried by the next ref word (which
+                // might be the one that actually belongs to it).
+                // The cursor stays put on low-similarity picks so the
+                // next ref word's lookahead still includes this
+                // candidate and can choose it if it's a better fit.
+                if trueSim >= matchThreshold {
+                    acIdx = pick + 1
+                }
             } else {
                 // No good candidate in the lookahead → unknownName
                 assessments.append(WordAssessment(
@@ -447,8 +593,40 @@ enum ArticulationAlignment {
             CharacterSet.alphanumerics.contains(scalar) || scalar == " "
         }
         let filtered = String(String.UnicodeScalarView(scalars))
-        return filtered.split(separator: " ", omittingEmptySubsequences: true)
+        let collapsed = filtered.split(separator: " ", omittingEmptySubsequences: true)
             .joined(separator: "")
+
+        // ── Indonesian phonetic normalisation ──────────────────────
+        // Wav2Vec2-ID routinely emits acoustically-similar chars in
+        // place of the reference character:
+        //   * f / v / b / p  — all labial consonants (the model hears
+        //     "Fotonya" and decodes it as "purtunya" because the
+        //     voice onset time and formant transitions are close).
+        //   * j / y          — palatal approximant vs. voiced
+        //     palatal fricative (the model often hears "ya" as "ja").
+        //   * d / t at word
+        //     onset          — alveolar stop confusion when there's no
+        //     following vowel ("dipamer" → "dipa" / "tipa").
+        //   * ng / n        — common nasal allophony.
+        //
+        // Mapping every member of a confusable set to the same
+        // canonical char makes Levenshtein/containment/subsequence
+        // comparisons match what the speaker actually said, even
+        // when the model's character output looks nothing like the
+        // reference string.
+        var out = ""
+        out.reserveCapacity(collapsed.count)
+        for ch in collapsed {
+            switch ch {
+            case "f", "v", "b", "p": out.append("p")
+            case "j", "y":           out.append("y")
+            case "d", "t":           out.append("t")
+            case "g", "k", "q":      out.append("k")
+            case "z", "s", "c":      out.append("s")
+            default:                  out.append(ch)
+            }
+        }
+        return out
     }
 
     /// True when a meaningful fraction of `word` is taken up by runs

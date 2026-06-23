@@ -146,15 +146,30 @@ final class Wav2Vec2AcousticRunner {
             ? Array(samples.prefix(Self.maxSamples))
             : samples
 
-        // Split into 5-second chunks.
+        // Split into 5-second chunks with 1-second overlap.
+        //
+        // Adjacent chunks used to be [0..5s], [5..10s], [10..15s]…
+        // with no overlap — a word that straddled the 5s boundary
+        // (e.g. "bekerja" with the "ja" in the next chunk) was
+        // truncated to "beker" and lost. With a 1s stride the chunks
+        // become [0..5s], [4..9s], [8..13s]… so every word position
+        // in the recording is fully contained in at least one chunk.
+        //
+        // Duplicates emitted from the overlap region are collapsed by
+        // `collapseChunkBoundaryDuplicates(_:)` below (it keys on
+        // identical text + overlapping frame ranges).
         let chunkSize = Self.expectedSampleCount
-        let chunkCount = (clamped.count + chunkSize - 1) / chunkSize
+        let overlapSamples = 16_000 // 1 second @ 16 kHz
+        let stride = chunkSize - overlapSamples // 4 s = 64 000 samples
+        let chunkCount = clamped.count <= chunkSize
+            ? 1
+            : (clamped.count - chunkSize + stride - 1) / stride + 1
 
         var allWords: [AcousticWord] = []
         var totalFrames = 0
 
         for chunkIdx in 0..<chunkCount {
-            let start = chunkIdx * chunkSize
+            let start = chunkIdx * stride
             let end = min(start + chunkSize, clamped.count)
             let chunk = Array(clamped[start..<end])
 
@@ -216,9 +231,11 @@ final class Wav2Vec2AcousticRunner {
         )
     }
 
-    /// Wav2Vec2 time-step stride is ~20 ms, so 5 frames ≈ 100 ms of
-    /// audio. Two words with the same text and frame ranges within
-    /// that window are almost certainly a chunk-boundary repeat.
+    /// Wav2Vec2 time-step stride is ~20 ms, so 5 frames ≈ 100 ms,
+    /// 50 frames ≈ 1 second of audio. Chunks are 5 s with a 1 s
+    /// overlap, so the same word at the seam can appear in adjacent
+    /// chunks with a frame gap of up to ~50 frames — we have to
+    /// look that far back to recognise a chunk-boundary repeat.
     private static func collapseChunkBoundaryDuplicates(
         _ words: [AcousticWord]
     ) -> (words: [AcousticWord], droppedCount: Int) {
@@ -230,8 +247,10 @@ final class Wav2Vec2AcousticRunner {
             let prev = result[result.count - 1]
             let cur = words[i]
             let isSameText = prev.text.lowercased() == cur.text.lowercased()
-            // Frames overlap if cur's start is within ~100ms of prev's end.
-            let isOverlapping = cur.frameStart <= prev.frameEnd + 5
+            // Frames overlap if cur's start is within ~1s of prev's end
+            // (the chunk-overlap window). The old 5-frame (100ms)
+            // window missed almost every repeat from the 1s overlap.
+            let isOverlapping = cur.frameStart <= prev.frameEnd + 50
             if isSameText && isOverlapping {
                 // Keep the higher-confidence copy.
                 if cur.confidence > prev.confidence {

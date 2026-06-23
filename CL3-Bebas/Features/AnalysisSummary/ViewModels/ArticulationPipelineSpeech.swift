@@ -31,6 +31,18 @@ enum ArticulationPipelineSpeech {
         let variance = confidences.map { ($0 - mean) * ($0 - mean) }.reduce(0, +) / Float(confidences.count)
         let stdDev = sqrt(variance)
 
+        // ── Zero-confidence bail-out ─────────────────────────────────
+        // Indonesian SFSpeech returns confidence=0 for every segment.
+        // mean=0 + sd=0 forces threshold=0.15 → every word is flagged
+        // unclear → score 0.00 with a wall of bogus issues. The legacy
+        // pipeline has no signal in this case; return a neutral score
+        // and empty issues rather than punish the speaker for ASR
+        // returning a structurally useless number.
+        if mean < 0.01 {
+            print("🗣️ [\(languageCode)] mean=\(String(format:"%.2f",mean)) sd=\(String(format:"%.2f",stdDev)) — SFSpeech returned no usable confidence, returning neutral score")
+            return (0.5, [])
+        }
+
         // ── Language-aware absolute floor ─────────────────────────────
         // Indonesian ASR returns structurally lower confidence (~0.3–0.5)
         // even for correctly spoken words. English is typically 0.6–0.9.
@@ -119,12 +131,20 @@ enum ArticulationPipelineSpeech {
     ///   a `PronunciationIssue` whose `word` is the REFERENCE form
     ///   (the one the recognizer agreed on), but whose `acousticWord`
     ///   holds the raw form the user actually said.
-    /// - `.unknownName` assessments are excluded from both the issues
-    ///   list AND the score denominator (they represent OOV words, not
-    ///   articulation problems).
+    /// - `.unknownName` assessments are excluded from the issues list
+    ///   (they represent OOV words, not articulation problems) but they
+    ///   DO count in the score denominator — otherwise a transcript
+    ///   where the acoustic model simply failed to detect half the
+    ///   words would score a perfect 1.00 (10 matches / 10 scorable,
+    ///   28 unknown silently dropped).
     /// - `.match` assessments are not surfaced.
-    /// - Score = matched / scorable, where scorable = match + mispronounced
-    ///   (unknownName excluded). Returns 0.0 when no words are assessed.
+    /// - Score uses weighted counts: match = 1.0, unknownName = 0.5,
+    ///   mispronounced = 0.0. The half-credit for unknownName keeps
+    ///   the score from collapsing when the acoustic model produces
+    ///   borderline-but-not-confident output, while mispronounced
+    ///   words still pull the score down hard (the user is the one
+    ///   who actually mispronounced them). Returns 0.0 when no words
+    ///   are assessed.
     static func runDualPath(
         segments: [SFTranscriptionSegment],
         assessments: [WordAssessment],
@@ -134,13 +154,28 @@ enum ArticulationPipelineSpeech {
         guard !assessments.isEmpty else { return (0.0, []) }
 
         // ── Score calculation ───────────────────────────────────────
-        // Only count words that are "scorable" — match + mispronounced.
-        // unknownName words (foreign names, loanwords) are excluded
-        // from both numerator and denominator so they don't inflate
-        // or deflate the score.
-        let scorable = assessments.filter { $0.decision != .unknownName }
-        let matchedCount = scorable.filter { $0.decision == .match }.count
-        let scorableCount = scorable.count
+        // Denominator = ALL assessed words (including unknownName).
+        // Numerator   = weighted sum across decisions:
+        //                 match       → 1.0 (clean hit)
+        //                 unknownName → 0.5 (acoustic model produced
+        //                                something but couldn't
+        //                                classify it cleanly — the
+        //                                user probably said it
+        //                                fine, the model just isn't
+        //                                sure; partial credit)
+        //                 mispronounced → 0.0 (real articulation
+        //                                problem, full penalty)
+        //
+        // The unknownName half-credit stops the score from collapsing
+        // on borderline acoustic output (which would otherwise drag
+        // a 0.80 run down to 0.47 just because the model couldn't
+        // decide on a few words), while still leaving mispronounced
+        // words with full negative impact.
+        let totalAssessed = assessments.count
+        let matchedCount = assessments.filter { $0.decision == .match }.count
+        let unknownCount = assessments.filter { $0.decision == .unknownName }.count
+        let weightedNumerator = Float(matchedCount) + Float(unknownCount) * 0.5
+        let scorableCount = totalAssessed
 
         let mispronounced = assessments.filter { $0.decision == .mispronounced }
 
@@ -207,14 +242,14 @@ enum ArticulationPipelineSpeech {
             .sorted { $0.confidence < $1.confidence }
             .filter { seen.insert($0.word.lowercased()).inserted }
 
-        // Score: matched / scorable (excluding unknownName from both).
-        // If there are no scorable words (all are unknown names or no
-        // assessments), return 0.0 — we have no evidence of clarity.
+        // Score: matched / total assessed (unknownName now counts
+        // toward the denominator). If there are no assessed words,
+        // return 0.0 — we have no evidence of clarity.
         let score: Float = scorableCount > 0
-            ? Float(matchedCount) / Float(scorableCount)
+            ? weightedNumerator / Float(scorableCount)
             : 0.0
 
-        print("🗣️ [\(languageCode)] dual-path: \(matchedCount)/\(scorableCount) matched (\(assessments.count - scorableCount) unknownName skipped) → score \(String(format: "%.2f", score))")
+        print("🗣️ [\(languageCode)] dual-path: \(matchedCount)/\(scorableCount) matched + \(unknownCount) unknown (0.5wt) + \(assessments.count - matchedCount - unknownCount) mispronounced → score \(String(format: "%.2f", score))")
         print("🗣️ flagged: \(deduped.map { $0.word })")
         return (score, deduped)
     }

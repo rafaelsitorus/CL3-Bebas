@@ -26,7 +26,11 @@ struct IntonationReviewView: View {
     }
 
     private var pdqNormalized: Double {
-        min(1.0, pdq / 1.0)
+        if pdq <= 0.10 {
+            return (pdq / 0.10) * 0.30
+        } else {
+            return 0.30 + ((pdq - 0.10) / 0.90) * 0.70
+        }
     }
 
    

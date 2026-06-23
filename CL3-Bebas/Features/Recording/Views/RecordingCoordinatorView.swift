@@ -43,7 +43,6 @@ struct RecordPitchCoordinatorView: View {
     }
 
     var body: some View {
-<<<<<<< HEAD
         // Single `NavigationStack` whose root is the language
         // selection page and whose pushed destination is the
         // recording page. The back chevron and the iOS edge

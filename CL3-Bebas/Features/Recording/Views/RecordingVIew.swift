@@ -85,8 +85,21 @@ struct RecordingView: View {
                 .transition(.opacity.combined(with: .scale))
             }
         }
-        .background(Color(.systemBackground))
-        .navigationBarBackButtonHidden(true)
+        // Match the language-selection page's background tint so
+        // the two screens read as one continuous flow. The
+        // grouped background is a slightly off-white in light
+        // mode and a deeper grey in dark mode — both look
+        // intentional next to the systemLanguageSelection's
+        // white cards.
+        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        // We intentionally do NOT call
+        // `.navigationBarBackButtonHidden(true)` here anymore —
+        // the coordinator owns its own `NavigationStack` and we
+        // want the system back chevron (and the iOS edge gesture)
+        // to be available so the user can pop back to language
+        // selection. The coordinator also exposes a top-leading
+        // toolbar button that mirrors this same action as a
+        // fallback.
         // ── Alerts ─────────────────────────────────────────────────────
         .alert("Microphone Access Denied",
                isPresented: $viewModel.permissionDenied) {
@@ -99,15 +112,21 @@ struct RecordingView: View {
         } message: {
             Text("Please allow microphone access in Settings to record your pitch.")
         }
+        // ── Native iOS alerts ─────────────────────────────────────────
+        // Standard SwiftUI `.alert` — matches the system look the
+        // user sees everywhere else on iOS. We tint "Yes" and
+        // "Finish" with the accent colour so they read as the
+        // primary action; "No" stays as the system cancel treatment.
         .alert("Are you sure you want to re-record your pitch?",
                isPresented: $viewModel.showReRecordAlert) {
-            Button("Yes") {
-                viewModel.reRecord()
-            }
             Button("No", role: .cancel) {
                 // Resume if we paused just to show the alert
                 if viewModel.isPaused { viewModel.togglePauseResume() }
             }
+            Button("Yes") {
+                viewModel.reRecord()
+            }
+            .tint(Color.accentColor)
         } message: {
             Text("If you re-record, the previously recorded pitch will be lost.")
         }
@@ -121,17 +140,9 @@ struct RecordingView: View {
                 viewModel.finishRecording()
                 onConfirm?()
             }
+            .tint(Color.accentColor)
         } message: {
             Text("The recording will be processed and analyzed.")
-        }
-        .alert("Recording time limit reached",
-               isPresented: $viewModel.showTimeLimitAlert) {
-            Button("Okay") {
-                viewModel.confirmRecording()
-                onConfirm?()
-            }
-        } message: {
-            Text("The maximum recording limit is 5 minutes. Your current session has been saved and will now be analyzed.")
         }
         .animation(.easeInOut(duration: 0.25), value: viewModel.isRecording)
     }
@@ -172,16 +183,8 @@ private struct StartRecordButton: View {
         Button(action: action) {
             ZStack {
                 Circle()
-                    .fill(Color(red: 0.0, green: 0.48, blue: 1.0).opacity(0.12))
-                    .frame(width: 88, height: 88)
-
-                Circle()
                     .fill(Color(red: 0.0, green: 0.48, blue: 1.0))
                     .frame(width: 68, height: 68)
-                    .shadow(
-                        color: Color(red: 0.0, green: 0.48, blue: 1.0).opacity(0.4),
-                        radius: 14, x: 0, y: 5
-                    )
 
                 Image(systemName: AppIcon.micIcon)
                     .font(.system(size: 26, weight: .semibold))
@@ -224,10 +227,6 @@ private struct RecordingControlBar: View {
                     Circle()
                         .fill(Color(red: 0.0, green: 0.48, blue: 1.0))
                         .frame(width: 64, height: 64)
-                        .shadow(
-                            color: Color(red: 0.0, green: 0.48, blue: 1.0).opacity(0.4),
-                            radius: 12, x: 0, y: 4
-                        )
 
                     Image(systemName: isPaused ? AppIcon.playIcon : AppIcon.pauseIcon)
                         .font(.system(size: 22, weight: .semibold))
@@ -267,7 +266,6 @@ private struct RecordingActionButton: View {
                 Circle()
                     .fill(Color.red)
                     .frame(width: 55, height: 55)
-                    .shadow(color: Color.red.opacity(0.35), radius: 8, x: 0, y: 3)
 
                 Image(systemName: systemImage)
                     .font(.system(size: iconSize, weight: .semibold))

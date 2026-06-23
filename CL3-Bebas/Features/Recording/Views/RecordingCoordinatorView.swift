@@ -73,8 +73,15 @@ struct RecordPitchCoordinatorView: View {
                             // build a dummy result while the real
                             // analyzer is being wired up.
                             let langCode = viewModel.selectedLanguage == .english ? "en" : "id"
+                            // `onFinished` takes three arguments:
+                            // (AudioSampleData, language code, recording
+                            // title). The title is what the host
+                            // (`AppRootView`) hands to `HistoryStore.save`
+                            // as the display name for the new SwiftData
+                            // row, so we forward the current value here.
+                            let title = viewModel.recordingTitle
                             if let sample = viewModel.lastSample {
-                                onFinished(sample, langCode)
+                                onFinished(sample, langCode, title)
                             } else {
                                 // lastSample may be nil if the user
                                 // tapped confirm before the recorder
@@ -85,7 +92,8 @@ struct RecordPitchCoordinatorView: View {
                                     AudioSampleData(
                                         recordingDuration: TimeInterval(viewModel.elapsedSeconds)
                                     ),
-                                    langCode
+                                    langCode,
+                                    title
                                 )
                             }
                         },

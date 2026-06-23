@@ -246,7 +246,7 @@ final class HistoryStore: ObservableObject {
         }
 
         let intonationScore: Float =
-            result.intonationLabel.localizedCaseInsensitiveContains("varied") ? 1.0 : 0.5
+            result.intonationLabel.localizedCaseInsensitiveContains("Expressive") ? 1.0 : 0.5
 
         return result.articulationScore * 0.4
              + paceScore * 0.3

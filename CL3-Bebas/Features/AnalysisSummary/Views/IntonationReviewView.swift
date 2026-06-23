@@ -206,7 +206,7 @@ struct IntonationReviewView: View {
                 volumeLabel: "Good",
                 pitchSamples: (0..<100).map { _ in Float.random(in: 80...300) },
                 pitchVariance: 800,
-                intonationLabel: "Varied",
+                intonationLabel: "Expressive",
                 amplitudeSamples: [],
                 articulationScore: 0.75,
                 pronunciationIssues: [],

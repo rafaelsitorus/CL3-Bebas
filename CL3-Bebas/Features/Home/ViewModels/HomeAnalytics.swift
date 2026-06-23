@@ -151,7 +151,7 @@ struct HomeAnalytics {
             return (stddev / 200.0)
         }.reduce(0, +) / Double(slice.count)
 
-        let mostRecentIntonation = slice.first?.intonationLabel ?? "Varied"
+        let mostRecentIntonation = slice.first?.intonationLabel ?? "Expressive"
         self.intonation = MetricSummary(
             status: mostRecentIntonation,
             pillLabel: String(format: "Average: %.2f PDQ", avgPdq),

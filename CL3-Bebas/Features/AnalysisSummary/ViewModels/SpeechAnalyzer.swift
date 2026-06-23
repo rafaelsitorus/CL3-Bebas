@@ -53,7 +53,7 @@ struct AnalysisResult {
             }()
 
             let intonationScore: Float =
-                intonationLabel == "Varied" ? 1.0 : 0.5
+                intonationLabel == "Expressive" ? 1.0 : 0.5
 
             return articulationScore * 0.4
                  + paceScore * 0.3
@@ -241,7 +241,7 @@ class SpeechAnalyzer: ObservableObject {
         let pitchMean = voiced.isEmpty ? 0 : voiced.reduce(0, +) / Float(voiced.count)
         let pitchVariance = voiced.isEmpty ? 0 :
             voiced.map { ($0 - pitchMean) * ($0 - pitchMean) }.reduce(0, +) / Float(voiced.count)
-        let intonation = pitchVariance < 400 ? "Flat" : "Varied"
+        let intonation = pitchVariance < 400 ? "Flat" : "Expressive"
         progress = 0.65
 
         // ── Articulation (dual-path: acoustic Wav2Vec2 + reference) ──

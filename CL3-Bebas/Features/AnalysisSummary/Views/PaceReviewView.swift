@@ -192,7 +192,7 @@ struct PaceReviewView: View {
                 volumeLabel: "Good",
                 pitchSamples: [],
                 pitchVariance: 600,
-                intonationLabel: "Varied",
+                intonationLabel: "Expressive",
                 amplitudeSamples: [],
                 articulationScore: 0.75,
                 pronunciationIssues: [],

@@ -10,7 +10,6 @@ struct IntonationReviewView: View {
     let result: AnalysisResult
 
     // MARK: Private
-
     @Environment(\.dismiss) private var dismiss
 
     // MARK: PDQ Calculation
@@ -27,12 +26,12 @@ struct IntonationReviewView: View {
     }
 
     private var pdqNormalized: Double {
-        min(1.0, pdq / 0.16)
+        min(1.0, pdq / 1.0)
     }
 
    
     private var pdqDisplay: String {
-        String(format: "%.2f", min(pdq, 0.99))   // cap display at 0.99 to avoid "1.00"
+        String(format: "%.2f", min(pdq, 0.99))
     }
 
     // MARK: Body
@@ -48,10 +47,10 @@ struct IntonationReviewView: View {
                         ScaleTick(fraction: 0.0,
                                   label: "0",
                                   isBold: false),
-                        ScaleTick(fraction: 0.625,
+                        ScaleTick(fraction: 0.30,
                                   label: "0.10",
                                   isBold: false),
-                        ScaleTick(fraction: min(1.0, pdqNormalized),
+                        ScaleTick(fraction: pdqNormalized,
                                   label: pdqDisplay,
                                   isBold: true),
                         ScaleTick(fraction: 1.0,
@@ -60,10 +59,10 @@ struct IntonationReviewView: View {
                     ],
                     leadingLabel: "Flat",
                     trailingLabel: "Expressive",
-                    highlightRange: 0.625...1.0,
+                    highlightRange: 0.30...1.0,            // was 0.625...1.0
                     highlightColor: Color.BarGreenAnalysis,
-                    dotColor: pdqColor,                               // green or red depending on score
-                    activeEndpoint: pdq >= 0.10 ? .trailing : .leading   // "Expressive" or "Flat" gets colored
+                    dotColor: pdqColor,
+                    activeEndpoint: pdq >= 0.10 ? .trailing : .leading
                 )
                 explanationText
                 Divider()

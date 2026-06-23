@@ -7,6 +7,11 @@
 
 import SwiftUI
 
+/// Each route in the recording coordinator's internal NavigationStack.
+enum RecordPitchStep: Hashable {
+    case recording
+}
+
 struct RecordPitchCoordinatorView: View {
 
     // Change signature: onFinished now delivers the captured audio + language
@@ -15,6 +20,15 @@ struct RecordPitchCoordinatorView: View {
     let onCancelled: () -> Void
 
     @StateObject private var viewModel: RecordPitchViewModel
+
+    /// Native navigation path. Empty = language-selection root
+    /// showing; `.recording` pushed on top when the user advances.
+    /// Using a `NavigationStack(path:)` here (instead of swapping
+    /// via `ZStack` + opacity) is what gives the system back
+    /// gesture — slide right from the left edge pops the
+    /// recording page and returns to language selection, exactly
+    /// like a normal SwiftUI push.
+    @State private var path: [RecordPitchStep] = []
 
     init(
         isPreview: Bool = false,
@@ -29,85 +43,76 @@ struct RecordPitchCoordinatorView: View {
     }
 
     var body: some View {
-        // The coordinator owns its own NavigationStack so the inner
-        // views can declare navigation titles. The single toolbar
-        // block below renders EXACTLY ONE back button and EXACTLY
-        // ONE confirm button, no matter which inner page is
-        // currently active. (Previously each inner view declared
-        // its own toolbar and a ZStack mounted both, which produced
-        // duplicate buttons.)
-        NavigationStack {
-            ZStack {
-                RecordingLanguageSelectionView(
-                    viewModel: viewModel,
-                    onConfirm: { onLanguageConfirmed() },
-                    onCancel: { onCancelled() }
-                )
-                .opacity(viewModel.currentPage == .languageSelection ? 1 : 0)
-                .allowsHitTesting(viewModel.currentPage == .languageSelection)
-
-                RecordingView(
-                    viewModel: viewModel,
-                    onConfirm: {
-                        // We do not block on the captured audio here —
-                        // the host just needs the language code to
-                        // build a dummy result while the real
-                        // analyzer is being wired up.
-                        let langCode = viewModel.selectedLanguage == .english ? "en" : "id"
-                        if let sample = viewModel.lastSample {
-                            onFinished(sample, langCode)
-                        } else {
-                            // lastSample may be nil if the user
-                            // tapped confirm before the recorder
-                            // produced any samples. Pass an empty
-                            // sample — the host can still build a
-                            // dummy result.
-                            onFinished(
-                                AudioSampleData(
-                                    recordingDuration: TimeInterval(viewModel.elapsedSeconds)
-                                ),
-                                langCode
-                            )
+        // Single `NavigationStack` whose root is the language
+        // selection page and whose pushed destination is the
+        // recording page. The back chevron and the iOS edge
+        // gesture pop the recording destination back to language
+        // selection — no `ZStack`-swap trick.
+        NavigationStack(path: $path) {
+            RecordingLanguageSelectionView(
+                viewModel: viewModel,
+                onConfirm: {
+                    // User tapped the checkmark in
+                    // language-selection. Advance to the recording
+                    // page by pushing onto the stack — this is the
+                    // only path mutation we make here, so the back
+                    // gesture works natively.
+                    path.append(.recording)
+                    onLanguageConfirmed()
+                },
+                onCancel: { onCancelled() }
+            )
+            .navigationDestination(for: RecordPitchStep.self) { step in
+                switch step {
+                case .recording:
+                    RecordingView(
+                        viewModel: viewModel,
+                        onConfirm: {
+                            // We do not block on the captured audio here —
+                            // the host just needs the language code to
+                            // build a dummy result while the real
+                            // analyzer is being wired up.
+                            let langCode = viewModel.selectedLanguage == .english ? "en" : "id"
+                            if let sample = viewModel.lastSample {
+                                onFinished(sample, langCode)
+                            } else {
+                                // lastSample may be nil if the user
+                                // tapped confirm before the recorder
+                                // produced any samples. Pass an empty
+                                // sample — the host can still build a
+                                // dummy result.
+                                onFinished(
+                                    AudioSampleData(
+                                        recordingDuration: TimeInterval(viewModel.elapsedSeconds)
+                                    ),
+                                    langCode
+                                )
+                            }
+                        },
+                        // "Back" from the recording page returns to
+                        // language selection by popping the stack
+                        // (instead of dismissing the whole cover).
+                        // We also clear the recording state so a
+                        // re-entry starts from scratch.
+                        onCancel: {
+                            viewModel.goBack()
+                            if !path.isEmpty { path.removeLast() }
                         }
-                    },
-                    onCancel: { viewModel.goBack() }
-                )
-                .opacity(viewModel.currentPage == .recording ? 1 : 0)
-                .allowsHitTesting(viewModel.currentPage == .recording)
-            }
-            // A short, snappy transition between pages.
-            .animation(.easeOut(duration: 0.18), value: viewModel.currentPage)
-        }
-        // The coordinator is the single owner of the toolbar. We
-        // expose:
-        //   - a top-leading back / cancel button (always)
-        //   - a top-trailing check button ONLY on the language
-        //     selection page (the user needs it to advance to the
-        //     recording page). On the recording page we omit it
-        //     because the page already has its own on-screen finish
-        //     button (the red `square.fill` stop button in the
-        //     RecordingControlBar).
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    onCancelled()
-                } label: {
-                    Image(systemName: "chevron.left")
-                }
-                .accessibilityLabel("Back")
-            }
-            if viewModel.currentPage == .languageSelection {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        viewModel.confirmLanguageSelection()
-                        onLanguageConfirmed()
-                    } label: {
-                        Image(systemName: "checkmark")
-                    }
-                    .accessibilityLabel("Continue")
+                    )
                 }
             }
         }
+        // The toolbar lives on each child view — see
+        // `RecordingLanguageSelectionView` for the Continue
+        // checkmark + cancel chevron on the root, and the
+        // system back chevron on the pushed `RecordingView`
+        // destination. We intentionally do NOT attach a
+        // `.toolbar` here at the coordinator level because
+        // toolbar items declared on a NavigationStack's
+        // outer container apply to the root only — putting
+        // them on the children keeps each view self-contained
+        // and gives us a native back button on the recording
+        // destination that the system gesture can pop.
     }
 }
 

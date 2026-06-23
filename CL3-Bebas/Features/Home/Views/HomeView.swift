@@ -17,6 +17,7 @@ struct HomeView: View {
     /// automatically. We take the first 5 for the analytics
     /// (matching the product spec: "average of the latest 5
     /// pitches, or fewer if the user has recorded less").
+    
     @Query(sort: [SortDescriptor(\RecordingHistoryModel.date, order: .reverse)])
     private var allRecordings: [RecordingHistoryModel]
 
@@ -28,9 +29,14 @@ struct HomeView: View {
     /// Triggered when the user taps an article card.
     /// Connected natively by the root NavigationStack.
     let onArticleTap: (Article) -> Void
+    let onRecordButtonTap: () -> Void
 
-    init(onArticleTap: @escaping (Article) -> Void = { _ in }) {
+    init(
+        onArticleTap: @escaping (Article) -> Void = { _ in },
+        onRecordButtonTap: @escaping () -> Void = {}
+    ) {
         self.onArticleTap = onArticleTap
+        self.onRecordButtonTap = onRecordButtonTap
     }
 
     // MARK: - Derived analytics
@@ -101,6 +107,7 @@ struct HomeView: View {
         // the bottom bar. The illustration is the `imageHomeScreen`
         // asset that already exists in `Assets.xcassets` (see
         // `AppImage.homeScreenIllust`).
+        
         GeometryReader { geometry in
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .center, spacing: 0) {
@@ -129,10 +136,19 @@ struct HomeView: View {
                                 .padding(.horizontal, 40)
                         }
                         
+                        Button {
+                            onRecordButtonTap()
+                        } label: {
+                            Text("Record Your First Pitch")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                        .padding(.horizontal, 24)
+                        
                         Spacer() // Mendorong dari bawah
                     }
                     .frame(maxWidth: .infinity)
-                    // Memaksa VStack memiliki tinggi minimal setara dengan tinggi layar
                     .frame(minHeight: geometry.size.height)
                 }
             }
@@ -450,3 +466,4 @@ struct PartitionedProgressBar: View {
             .modelContainer(container)
     }
 }
+

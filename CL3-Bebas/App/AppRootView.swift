@@ -286,6 +286,9 @@ struct AppRootView: View {
             HomeView(
                 onArticleTap: { article in
                     onboardingViewModel.path.append(AppRoute.article(article))
+                },
+                onRecordButtonTap: {
+                    presentedRecording = true
                 }
             )
         } else {

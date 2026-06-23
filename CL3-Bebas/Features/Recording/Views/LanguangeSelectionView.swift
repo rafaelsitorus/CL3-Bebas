@@ -63,6 +63,40 @@ struct RecordingLanguageSelectionView: View {
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        // ── Toolbar ────────────────────────────────────────────────
+        // The coordinator exposes the back chevron (top-leading)
+        // and the "Continue" checkmark (top-trailing) from this
+        // root view. Both items are part of `LanguageSelectionView`
+        // itself so they ride along with the root whenever it is
+        // visible — they do not re-appear on the pushed
+        // recording destination (where we want the system back
+        // chevron instead).
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    onCancel?()
+                } label: {
+                    Image(systemName: "chevron.left")
+                }
+                .accessibilityLabel("Cancel recording")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    // Dismiss the keyboard first so it does not
+                    // linger on the recording page after the push.
+                    UIApplication.shared.sendAction(
+                        #selector(UIResponder.resignFirstResponder),
+                        to: nil,
+                        from: nil,
+                        for: nil
+                    )
+                    onConfirm?()
+                } label: {
+                    Image(systemName: "checkmark")
+                }
+                .accessibilityLabel("Continue")
+            }
+        }
     }
 }
 

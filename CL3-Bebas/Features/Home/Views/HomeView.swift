@@ -9,6 +9,15 @@ import SwiftUI
 import SwiftData
 
 struct HomeView: View {
+
+    /// The user's recordings, newest first. `@Query` keeps this in
+    /// sync with SwiftData — every time a new
+    /// `RecordingHistoryModel` is inserted (e.g. after a fresh
+    /// recording finishes analysis), the view re-renders
+    /// automatically. We take the first 5 for the analytics
+    /// (matching the product spec: "average of the latest 5
+    /// pitches, or fewer if the user has recorded less").
+
     @Query(sort: [SortDescriptor(\RecordingHistoryModel.date, order: .reverse)])
     private var allRecordings: [RecordingHistoryModel]
 
@@ -58,6 +67,14 @@ struct HomeView: View {
     }
 
     private var emptyState: some View {
+        // Empty state for the Home tab. The user has zero
+        // recordings, so the analytics / per-metric cards are
+        // meaningless — we hide them and show a single
+        // illustration + CTA pointing them at the mic button on
+        // the bottom bar. The illustration is the `imageHomeScreen`
+        // asset that already exists in `Assets.xcassets` (see
+        // `AppImage.homeScreenIllust`).
+
         GeometryReader { geometry in
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .center, spacing: 0) {
@@ -95,8 +112,8 @@ struct HomeView: View {
                         .buttonStyle(.borderedProminent)
                         .controlSize(.large)
                         .padding(.horizontal, 24)
-                        
-                        Spacer()
+
+                        Spacer() // Mendorong dari bawah
                     }
                     .frame(maxWidth: .infinity)
                     .frame(minHeight: geometry.size.height)

@@ -31,9 +31,12 @@ import Accelerate
 
 final class Wav2Vec2AcousticRunner {
 
-    /// Model expects 5 s @ 16 kHz = 80 000 samples. Confirmed from
-    /// `load_spec` on the `.mlmodel` file.
+    /// Model expects 5 s @ 16 kHz = 80 000 samples per chunk.
+    /// Confirmed from `load_spec` on the `.mlmodel` file.
     static let expectedSampleCount = 80_000
+
+    /// Maximum audio duration we support (5 minutes @ 16 kHz).
+    static let maxSamples = 16_000 * 300  // 4_800_000
 
     private var model: MLModel?
     private var vocabTable: [Int: String] = [:]   // token_id -> character
@@ -123,12 +126,13 @@ final class Wav2Vec2AcousticRunner {
 
     var isReady: Bool { model != nil && !vocabTable.isEmpty }
 
-    // MARK: - Inference
-
     /// Run CTC decode on raw audio. Caller is expected to have
     /// resampled to 16 kHz mono float32 first (see
     /// `SpeechAnalyzer.resampleTo16kStatic`). The model internally
     /// converts to Float16.
+    ///
+    /// Supports up to 5 minutes of audio by chunking into 5-second
+    /// windows and concatenating the CTC-decoded output.
     func transcribe(samples: [Float]) -> AcousticTranscript {
         guard let model, !vocabTable.isEmpty else {
             return AcousticTranscript(words: [], framesProcessed: 0, sampleRate: 16_000)
@@ -137,35 +141,108 @@ final class Wav2Vec2AcousticRunner {
             return AcousticTranscript(words: [], framesProcessed: 0, sampleRate: 16_000)
         }
 
-        // Step 1: pad / truncate to exactly 80 000 samples.
-        let prepared = Self.prepareSamples(samples, targetLength: Self.expectedSampleCount)
+        // Clamp to max supported duration (5 minutes).
+        let clamped = samples.count > Self.maxSamples
+            ? Array(samples.prefix(Self.maxSamples))
+            : samples
 
-        // Step 2: build the Float16 MLMultiArray input. The reference
-        // (Wav2Vec2Service.swift) does this — the model was trained
-        // on Float16 and CoreML refuses Float32 here ("multiArrayConstraint
-        // ... isAllowedValue: fails for ... Float32").
-        guard let inputArray = makeFloat16MultiArray(prepared) else {
-            print("🧠 ❌ failed to build input MultiArray")
-            return AcousticTranscript(words: [], framesProcessed: 0, sampleRate: 16_000)
+        // Split into 5-second chunks.
+        let chunkSize = Self.expectedSampleCount
+        let chunkCount = (clamped.count + chunkSize - 1) / chunkSize
+
+        var allWords: [AcousticWord] = []
+        var totalFrames = 0
+
+        for chunkIdx in 0..<chunkCount {
+            let start = chunkIdx * chunkSize
+            let end = min(start + chunkSize, clamped.count)
+            let chunk = Array(clamped[start..<end])
+
+            // Pad the last chunk if it's shorter than 5 seconds.
+            let prepared = Self.prepareSamples(chunk, targetLength: chunkSize)
+
+            guard let inputArray = makeFloat16MultiArray(prepared) else {
+                print("🧠 ❌ failed to build input MultiArray for chunk \(chunkIdx)")
+                continue
+            }
+
+            let result: MLFeatureProvider
+            do {
+                let provider = try MLDictionaryFeatureProvider(dictionary: ["audio": inputArray])
+                result = try model.prediction(from: provider)
+            } catch {
+                print("🧠 ❌ Wav2Vec2 prediction failed for chunk \(chunkIdx): \(error)")
+                continue
+            }
+
+            guard let logits = result.featureValue(for: "logits")?.multiArrayValue else {
+                print("🧠 ❌ 'logits' feature missing from chunk \(chunkIdx) output")
+                continue
+            }
+
+            let chunkTranscript = ctcDecode(logits: logits)
+
+            // Offset frame indices by the cumulative frame count so
+            // they're globally consistent.
+            for word in chunkTranscript.words {
+                allWords.append(AcousticWord(
+                    text: word.text,
+                    confidence: word.confidence,
+                    frameStart: word.frameStart + totalFrames,
+                    frameEnd: word.frameEnd + totalFrames
+                ))
+            }
+            totalFrames += chunkTranscript.framesProcessed
         }
 
-        // Step 3: inference.
-        let provider: MLDictionaryFeatureProvider
-        let result: MLFeatureProvider
-        do {
-            provider = try MLDictionaryFeatureProvider(dictionary: ["audio": inputArray])
-            result = try model.prediction(from: provider)
-        } catch {
-            print("🧠 ❌ Wav2Vec2 prediction failed: \(error)")
-            return AcousticTranscript(words: [], framesProcessed: 0, sampleRate: 16_000)
+        // ── Collapse chunk-boundary duplicates ───────────────────────
+        // Wav2Vec2 chunked inference can re-emit the same word at the
+        // seam between adjacent 5-second chunks when audio bleeds
+        // across the boundary. Two consecutive words with the same
+        // text and overlapping frame ranges are the same utterance
+        // heard twice; keep the higher-confidence one and drop the
+        // rest. We deliberately don't do global dedup — a user might
+        // genuinely repeat a word later in the recording.
+        let deduped = Wav2Vec2AcousticRunner.collapseChunkBoundaryDuplicates(allWords)
+        if deduped.droppedCount > 0 {
+            print("🧠 collapsed \(deduped.droppedCount) chunk-boundary duplicate acoustic words")
         }
 
-        guard let logits = result.featureValue(for: "logits")?.multiArrayValue else {
-            print("🧠 ❌ 'logits' feature missing from Wav2Vec2 output")
-            return AcousticTranscript(words: [], framesProcessed: 0, sampleRate: 16_000)
-        }
+        print("🧠 acoustic transcript (\(chunkCount) chunks): \(deduped.words.map { "'\($0.text)'(\(String(format: "%.2f", $0.confidence)))" })")
+        return AcousticTranscript(
+            words: deduped.words,
+            framesProcessed: totalFrames,
+            sampleRate: 16_000
+        )
+    }
 
-        return ctcDecode(logits: logits)
+    /// Wav2Vec2 time-step stride is ~20 ms, so 5 frames ≈ 100 ms of
+    /// audio. Two words with the same text and frame ranges within
+    /// that window are almost certainly a chunk-boundary repeat.
+    private static func collapseChunkBoundaryDuplicates(
+        _ words: [AcousticWord]
+    ) -> (words: [AcousticWord], droppedCount: Int) {
+        guard words.count > 1 else { return (words, 0) }
+
+        var result: [AcousticWord] = [words[0]]
+        var dropped = 0
+        for i in 1..<words.count {
+            let prev = result[result.count - 1]
+            let cur = words[i]
+            let isSameText = prev.text.lowercased() == cur.text.lowercased()
+            // Frames overlap if cur's start is within ~100ms of prev's end.
+            let isOverlapping = cur.frameStart <= prev.frameEnd + 5
+            if isSameText && isOverlapping {
+                // Keep the higher-confidence copy.
+                if cur.confidence > prev.confidence {
+                    result[result.count - 1] = cur
+                }
+                dropped += 1
+            } else {
+                result.append(cur)
+            }
+        }
+        return (result, dropped)
     }
 
     // MARK: - Audio prep
@@ -247,15 +324,19 @@ final class Wav2Vec2AcousticRunner {
         }
 
         // Step 2: collapse consecutive duplicate tokens + drop blank.
-        var collapsed: [(tokenId: Int, confidence: Float)] = []
+        // Keep the original CTC time-step alongside each kept token so
+        // we can later report it as the word's frame range — that
+        // range is what the alignment layer uses to map acoustic words
+        // onto the recording timeline.
+        var collapsed: [(tokenId: Int, confidence: Float, timeStep: Int)] = []
         var prevTokenId: Int? = nil
-        for (tokenId, confidence) in tokens {
+        for (t, (tokenId, confidence)) in tokens.enumerated() {
             if tokenId == blankTokenId {
                 prevTokenId = nil  // blank resets the "same as prev" state
                 continue
             }
             if tokenId == prevTokenId { continue }
-            collapsed.append((tokenId: tokenId, confidence: confidence))
+            collapsed.append((tokenId: tokenId, confidence: confidence, timeStep: t))
             prevTokenId = tokenId
         }
 
@@ -291,19 +372,22 @@ final class Wav2Vec2AcousticRunner {
             currentConfs = []
         }
 
-        for (i, (tokenId, conf)) in collapsed.enumerated() {
-            // Map collapsed index back to original frame index (1-to-1
-            // for argmax; for tracking, we approximate "frame" as the
-            // collapsed index — it's only used for time alignment).
-            lastFrame = i
+        for (_, (tokenId, conf, timeStep)) in collapsed.enumerated() {
+            // Use the ORIGINAL CTC time-step (carried through the
+            // collapse step) as the word's frame index — not the
+            // collapsed position. The collapsed index would compress
+            // every word into the first second of audio; the real
+            // time-step lets the alignment layer spread acoustic
+            // words across the full recording timeline.
+            lastFrame = timeStep
             let char = vocabTable[tokenId] ?? ""
             if specialTokens.contains(char) { continue }
 
             if tokenId == wordSeparator || char == " " {
-                flush(endFrame: i)
-                currentStartFrame = i + 1
+                flush(endFrame: timeStep)
+                currentStartFrame = timeStep + 1
             } else {
-                if currentChars.isEmpty { currentStartFrame = i }
+                if currentChars.isEmpty { currentStartFrame = timeStep }
                 currentChars.append(char)
                 currentConfs.append(conf)
             }

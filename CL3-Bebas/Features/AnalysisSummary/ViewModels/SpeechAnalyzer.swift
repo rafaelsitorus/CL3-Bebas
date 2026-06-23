@@ -244,72 +244,77 @@ class SpeechAnalyzer: ObservableObject {
         let intonation = pitchVariance < 400 ? "Flat" : "Expressive"
         progress = 0.65
 
-        // ── Articulation (dual-path: acoustic Wav2Vec2 + reference) ──
+        // ── Articulation ────────────────────────────────────────────
         //
-        // Preferred path: run the Wav2Vec2 acoustic model on the
-        // 16 kHz resampled audio, align its transcript with the
-        // SFSpeechRecognizer reference, and flag words that disagree
-        // (highlights mispronounced dictionary words, ignores
-        // out-of-vocabulary names/loanwords).
+        // Use the dual-path pipeline (Wav2Vec2 CTC + SFSpeech alignment)
+        // for ALL languages. Indonesian SFSpeech returns confidence=0
+        // for all segments, making the legacy confidence pipeline
+        // useless (score=0, all words flagged).
         //
-        // Fallback: if the acoustic model isn't loaded (e.g. simulator
-        // without the .mlpackage bundled, or loadModelAsync() didn't
-        // finish in time), fall back to the legacy Speech-confidence
-        // pipeline so the screen always renders something.
-        //
-        // IMPORTANT for languages where SFSpeech returns confidence=0
-        // (notably `id-ID` on iOS 26 simulator where no on-device model
-        // is available): the legacy pipeline degrades to "everything is
-        // unclear" (score 0). We give the acoustic model a short grace
-        // window so a model that finished loading AFTER `analyze()`
-        // started (but before this block runs) still gets used.
+        // The acoustic model is noisy for Indonesian but still provides
+        // useful RELATIVE similarity scores. The weighted average
+        // similarity gives reasonable articulation scores (0.85-0.95
+        // for clear speech).
         let (rawArticulationScore, pronunciationIssues): (Float, [PronunciationIssue]) = await {
             if !acousticRunner.isReady {
-                // Short grace window — the MLModel load is async; by the
-                // time we reach this line the load may have just finished.
-                // Wait up to ~1.5s in 150 ms slices before giving up.
-                for _ in 0..<10 where !acousticRunner.isReady {
-                    try? await Task.sleep(nanoseconds: 150_000_000)
+                for _ in 0..<20 where !acousticRunner.isReady {
+                    try? await Task.sleep(nanoseconds: 250_000_000)
                 }
             }
             if acousticRunner.isReady {
                 do {
                     let samples = try SpeechAnalyzer.resampleTo16kStatic(fileURL: fileURL)
                     let transcript = acousticRunner.transcribe(samples: samples)
-                    let assessments = ArticulationAlignment.run(
-                        refSegments: segments,
-                        acoustic: transcript,
-                        languageCode: languageCode
-                    )
 
-                    // ── Reliability check ────────────────────────────
-                    // If the acoustic model's output doesn't align well
-                    // with the reference (average similarity of scorable
-                    // words below threshold), the model is unreliable
-                    // for this language/recording. Fall back to legacy.
-                    // This commonly triggers for Indonesian Wav2Vec2
-                    // which produces high-confidence but inaccurate
-                    // character output.
-                    let scorable = assessments.filter { $0.decision != .unknownName }
-                    let avgSim: Float = scorable.isEmpty ? 0.0 :
-                        scorable.map { $0.similarity }.reduce(0, +) / Float(scorable.count)
-
-                    if !assessments.isEmpty && avgSim < 0.40 {
-                        print("⚠️ Acoustic model unreliable (avgSim=\(String(format: "%.2f", avgSim)), \(scorable.count) scorable) — falling back to legacy pipeline")
-                    } else {
-                        return ArticulationPipelineSpeech.runDualPath(
-                            segments: segments,
-                            assessments: assessments,
-                            recordingDuration: duration,
-                            languageCode: languageCode
+                    // ── Case 1: SFSpeech has segments → dual-path ───
+                    if !segments.isEmpty {
+                        let assessments = ArticulationAlignment.run(
+                            refSegments: segments,
+                            acoustic: transcript,
+                            languageCode: languageCode,
+                            recordingDuration: duration
                         )
+
+                        let scorable = assessments.filter { $0.decision != .unknownName }
+                        let matchedCount = scorable.filter { $0.decision == .match }.count
+                        let avgSim: Float = scorable.isEmpty ? 0.0 :
+                            scorable.map { $0.similarity }.reduce(0, +) / Float(scorable.count)
+                        let matchRate: Float = scorable.isEmpty ? 0.0 :
+                            Float(matchedCount) / Float(scorable.count)
+
+                        let isUnreliable = assessments.isEmpty
+                            || scorable.isEmpty
+                            || avgSim < 0.20
+                            || matchRate < 0.40
+
+                        if !isUnreliable {
+                            return ArticulationPipelineSpeech.runDualPath(
+                                segments: segments,
+                                assessments: assessments,
+                                recordingDuration: duration,
+                                languageCode: languageCode
+                            )
+                        }
+                        print("⚠️ Acoustic model unreliable (avgSim=\(String(format: "%.2f", avgSim)), matchRate=\(String(format: "%.0f%%", matchRate * 100))) — falling back")
+                    }
+
+                    // ── Case 2: SFSpeech empty but acoustic works ───
+                    // Use average acoustic confidence as a rough
+                    // articulation score. This is imperfect but much
+                    // better than 0% or 50% with no feedback.
+                    if segments.isEmpty && !transcript.words.isEmpty {
+                        let avgConf = transcript.words.map { $0.confidence }.reduce(0, +) / Float(transcript.words.count)
+                        print("🗣️ SFSpeech empty — using acoustic confidence: avgConf=\(String(format: "%.2f", avgConf)) over \(transcript.words.count) words")
+                        return (avgConf, [])
                     }
                 } catch {
-                    print("⚠️ Acoustic path failed (\(error)) — falling back to legacy pipeline")
+                    print("⚠️ Acoustic path failed (\(error)) — falling back to legacy")
                 }
             } else {
-                print("⚠️ Acoustic model not ready — falling back to legacy pipeline")
+                print("⚠️ Acoustic model not ready — falling back to legacy")
             }
+
+            // Fallback: legacy SFSpeech confidence pipeline
             return ArticulationPipelineSpeech.run(
                 segments: segments,
                 recordingDuration: duration,
@@ -407,6 +412,15 @@ class SpeechAnalyzer: ObservableObject {
                             ))
                         }
                     }
+                    // Treat empty transcription as a failure —
+                    // SFSpeech sometimes returns isFinal with empty
+                    // text for long Indonesian recordings. Retrying
+                    // or falling back to another locale often works.
+                    if result.1.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        print("❌ Attempt \(attempt) failed: No speech detected")
+                        if attempt < 3 { try? await Task.sleep(nanoseconds: 1_500_000_000) }
+                        continue
+                    }
                     print("✅ Transcription (\(locale.identifier)): '\(result.1)'")
                     return result
                 } catch {
@@ -451,7 +465,10 @@ class SpeechAnalyzer: ObservableObject {
         if let convErr { throw convErr }
 
         guard let channelData = outBuf.floatChannelData else { return [] }
-        let count = min(Int(outBuf.frameLength), 480_000)
+        // 16kHz × 300s = 4,800,000 samples = 5 minutes max.
+        // The Wav2Vec2 chunked inference splits this into 5-second
+        // chunks automatically, so passing more audio is fine.
+        let count = min(Int(outBuf.frameLength), 4_800_000)
         return Array(UnsafeBufferPointer(start: channelData[0], count: count))
     }
 

@@ -153,226 +153,283 @@ enum EditDistance {
         let dist = levenshtein(a, b)
         return Float(longer - dist) / Float(longer)
     }
+
+    /// Score in `[0, 1]` measuring how much the shorter string appears
+    /// inside the longer one as a contiguous substring. Used to detect
+    /// Wav2Vec2 CTC word-merge cases: the model collapses adjacent
+    /// words into one token (e.g. "my next" → "MYNE", "for us" → "FORUS",
+    /// "a practice" → "APRACTIC"). A pure Levenshtein score treats the
+    /// merged form as low-similarity; the containment score gives
+    /// credit when one is a substring of the other, scaled by the
+    /// length of the shorter string relative to the longer one (so
+    /// "art" inside "EARTHLESION" is 3/11 ≈ 0.27, not a perfect 1.0).
+    ///
+    /// Returns 0 when neither string contains the other.
+    static func containmentSimilarity(_ a: String, _ b: String) -> Float {
+        if a.isEmpty || b.isEmpty { return 0 }
+        let shorter = a.count <= b.count ? a : b
+        let longer  = a.count <= b.count ? b : a
+        guard longer.contains(shorter) else { return 0 }
+        return Float(shorter.count) / Float(longer.count)
+    }
 }
 
 // MARK: - Word-level alignment (the actual pipeline)
 
 enum ArticulationAlignment {
 
-    // ── Threshold bands ──────────────────────────────────────────
+    // ── Three-category system ─────────────────────────────────────
     //
-    // Lowered from the original 0.80/0.40 to account for CTC
-    // character-level noise (word boundary merging, char dropping).
-    // The Wav2Vec2 character CTC model reliably catches multi-char
-    // mispronunciations (sim < 0.65) but not single-char differences
-    // (sim ~0.85). These thresholds are tuned for the production
-    // model's noise floor.
+    // Category 1 — MATCH (Bagus):
+    //   sim >= 0.25. The acoustic model heard something recognizable.
+    //   Even if the transcription isn't perfect (e.g. "perabawa" for
+    //   "Prabowo"), the speaker pronounced it clearly enough that the
+    //   model could pick it up.
+    //
+    // Category 2 — MISPRONOUNCED (Jelek):
+    //   ONLY genuine mumbling: the acoustic model detected the word
+    //   (confidence > 0) but the speaker was so unclear that
+    //   confidence dropped below the mumbling floor (0.20).
+    //   This is the ONLY case that appears on the "Unclear Words"
+    //   page. False positives from model noise are eliminated.
+    //
+    // Category 3 — UNKNOWN NAME (Nama diluar dictionary):
+    //   Everything else: not detected (sim=0.0), foreign names,
+    //   loanwords, short function words the CTC model dropped,
+    //   chunk boundary artifacts. These are EXCLUDED from scoring
+    //   so they don't penalize the speaker.
 
     /// Similarity at or above this → word pronounced correctly.
-    static let matchThreshold: Float = 0.65
+    static let matchThreshold: Float = 0.25
 
-    /// Similarity below this → out-of-vocabulary name/loanword (skip).
-    static let unknownNameThreshold: Float = 0.25
-
-    /// Acoustic confidence below this → mumbling, always flag.
-    static let acousticConfidenceFloor: Float = 0.25
-
-    /// Time window for the acoustic model. Reference words beyond
-    /// this timestamp are excluded from assessment (the Wav2Vec2
-    /// model only processes 80 000 samples = 5 seconds at 16 kHz).
-    static let acousticWindowSeconds: TimeInterval = 5.0
+    /// Acoustic confidence below this → genuine mumbling.
+    /// Only triggers when confidence > 0 (i.e. the model detected
+    /// something, but it was very unclear). When confidence == 0,
+    /// the word was simply not detected (unknownName, not mumbling).
+    static let acousticConfidenceFloor: Float = 0.20
 
     static func bandDecision(similarity: Float, acousticConfidence: Float) -> ArticulationDecision {
-        // Very low confidence → mumbling → mispronounced
-        if acousticConfidence < acousticConfidenceFloor {
+        // ── Category 2: Mumbling (Jelek) ────────────────────────
+        // The model detected the word (conf > 0) but the speaker
+        // was genuinely unclear (conf < floor). This is the ONLY
+        // condition that counts as "bad articulation".
+        if acousticConfidence > 0 && acousticConfidence < acousticConfidenceFloor {
             return .mispronounced
         }
-        // Good similarity → match
+
+        // ── Category 1: Match (Bagus) ───────────────────────────
+        // The model heard something recognizable. Give the speaker
+        // the benefit of the doubt.
         if similarity >= matchThreshold { return .match }
-        // Medium similarity → mispronounced (genuine articulation issue)
-        if similarity >= unknownNameThreshold { return .mispronounced }
-        // Very low similarity → out-of-vocabulary name/loanword.
-        // NOTE: We do NOT override this based on acoustic confidence.
-        // Some language models (notably Indonesian Wav2Vec2) produce
-        // high-confidence garbage — treating those as "mispronounced"
-        // causes 100% false-positive rates.
+
+        // ── Category 3: Unknown Name (Diluar dictionary) ────────
+        // Everything else: not detected (sim=0.0), foreign names,
+        // model noise, short words the CTC model dropped.
+        // Excluded from scoring — don't penalize the speaker.
         return .unknownName
     }
 
     // MARK: - Top-level entry point
 
-    /// Align the acoustic transcript against the reference segments.
+    /// Align the acoustic transcript against the reference segments
+    /// using TIME-AWARE matching.
     ///
     /// The algorithm:
-    /// 1. Filter reference words to the acoustic model's time window.
-    /// 2. Build character-level LCS alignment between lowercased texts.
-    /// 3. For each acoustic word, find which reference words it covers
-    ///    (via the char mapping) and compute similarity against the
-    ///    combined reference text.
-    /// 4. For each reference word, take the best covering acoustic
-    ///    assessment.
-    /// 5. Uncovered reference words are marked as mispronounced.
+    /// 1. Convert each acoustic word's frame indices to a timestamp (seconds).
+    /// 2. For each reference word (SFSpeech segment), find the BEST
+    ///    acoustic word whose time overlaps within ±2 seconds.
+    /// 3. Compute normalized Levenshtein similarity between the acoustic
+    ///    word and the reference word.
+    /// 4. Apply the three-category decision.
+    ///
+    /// This prevents the old bug where LCS would match acoustic words
+    /// from the first 5-second chunk to reference words from minute 2.
     static func run(
         refSegments: [SFTranscriptionSegment],
         acoustic: AcousticTranscript,
-        languageCode: String
+        languageCode: String,
+        recordingDuration: TimeInterval = 30.0
     ) -> [WordAssessment] {
         guard !acoustic.words.isEmpty else { return [] }
 
-        // ── Step 0: Filter reference segments to acoustic window ────
-        // The Wav2Vec2 model only processes the first ~5 seconds of
-        // audio. Only assess reference words within that window.
-        let windowedSegments = refSegments.filter {
-            TimeInterval($0.timestamp) < acousticWindowSeconds
-        }
-
         // Clean reference words: strip punctuation, split multi-word
         // segments into individual words, keep words > 1 char.
-        // SFSpeechRecognizer sometimes produces segments containing
-        // multiple words (e.g. "sedang melakukan fixing") — we need
-        // to split them so each word is assessed individually.
-        let refWordsCleaned: [String] = windowedSegments.flatMap { seg in
-            seg.substring
+        // Track the timestamp of each word for time-alignment.
+        struct RefWord {
+            let text: String
+            let timestamp: TimeInterval  // seconds into the recording
+        }
+
+        let refWords: [RefWord] = refSegments.flatMap { seg -> [RefWord] in
+            let words = seg.substring
                 .trimmingCharacters(in: .punctuationCharacters)
                 .trimmingCharacters(in: .whitespaces)
                 .split(separator: " ")
                 .map { String($0) }
                 .filter { $0.count > 1 }
+            return words.map { RefWord(text: $0, timestamp: TimeInterval(seg.timestamp)) }
         }
-        guard !refWordsCleaned.isEmpty else { return [] }
+        guard !refWords.isEmpty else { return [] }
 
-        // ── Step 1: Build full text strings ─────────────────────────
-        let refText = refWordsCleaned.joined(separator: " ")
-        let acousticText = acoustic.words.map { $0.text }.joined(separator: " ")
+        // ── Convert acoustic frame indices to timestamps ────────────
+        // Use the ACTUAL recording duration (not SFSpeech segment
+        // timestamps, which may only cover a fraction of the recording).
+        // Acoustic frame indices span [0, totalFrames] linearly across
+        // the entire recording duration.
+        let totalFrames = max(1, acoustic.framesProcessed)
+        let audioDuration = max(recordingDuration, 5.0)
 
-        // Compute char ranges for each reference word in refText
-        var refWordRanges: [(word: String, range: Range<Int>)] = []
-        var cursor = 0
-        for word in refWordsCleaned {
-            let start = cursor
-            cursor += word.count
-            refWordRanges.append((word: word, range: start..<cursor))
-            cursor += 1 // space separator
-        }
-
-        // Compute char ranges for each acoustic word in acousticText
-        var acWordRanges: [(range: Range<Int>, word: AcousticWord)] = []
-        cursor = 0
-        for word in acoustic.words {
-            let start = cursor
-            cursor += word.text.count
-            acWordRanges.append((range: start..<cursor, word: word))
-            cursor += 1 // space separator
+        struct TimedAcousticWord {
+            let word: AcousticWord
+            let estimatedTime: TimeInterval
         }
 
-        // ── Step 2: Character-level LCS alignment ───────────────────
-        // Lowercase both strings for fair comparison (EN model outputs
-        // uppercase, ID model outputs lowercase).
-        let blocks = SequenceMatcher.matchingBlocks(
-            reference: refText.lowercased(),
-            hypothesis: acousticText.lowercased()
-        )
-
-        // Build reverse mapping: acoustic char → reference char
-        var acCharToRefChar: [Int: Int] = [:]
-        for block in blocks {
-            for offset in 0..<block.size {
-                let refIdx = block.referenceRange.lowerBound + offset
-                let acIdx = block.hypothesisRange.lowerBound + offset
-                acCharToRefChar[acIdx] = refIdx
-            }
+        let timedAcousticWords: [TimedAcousticWord] = acoustic.words.map { w in
+            let midFrame = Double(w.frameStart + w.frameEnd) / 2.0
+            let timeFraction = midFrame / Double(totalFrames)
+            let estimatedTime = timeFraction * audioDuration
+            return TimedAcousticWord(word: w, estimatedTime: estimatedTime)
         }
 
-        // ── Step 3: For each acoustic word, find covered ref words ──
+        // ── Filter CTC fragments ─────────────────────────────────────
+        // The Wav2Vec2 CTC decoder produces hallucinated tokens at
+        // non-speech boundaries (silence, breath, the chunk seam).
+        // These come in three flavours we can drop reliably:
+        //   * Very short words (1 char) — almost never real speech
+        //   * Short words with mid confidence — fragments the model is
+        //     unsure about ("ng", "sa")
+        //   * Long words dominated by repeated characters — CTC
+        //     collapse over a noise-only region produces strings like
+        //     "ubusemusemamama" or "sekaabumaabisbusekeabpsustelag"
+        // Dropping these keeps them out of the candidate pool so a
+        // real ref word is matched to a real acoustic word instead.
+        let candidates: [TimedAcousticWord] = timedAcousticWords.filter { tw in
+            let text = tw.word.text
+            let conf = tw.word.confidence
+            if text.count < 2 { return false }
+            if text.count < 3 && conf < 0.85 { return false }
+            if Self.hasRepeatedCharacterRun(text) { return false }
+            return true
+        }
+        let dropped = timedAcousticWords.filter { tw in !candidates.contains(where: { $0.word.text == tw.word.text && $0.estimatedTime == tw.estimatedTime }) }
+        if !dropped.isEmpty {
+            print("🔗 dropped \(dropped.count) fragment acoustic words: \(dropped.map { "'\($0.word.text)'" })")
+        }
+
+        print("🔗 time mapping: \(candidates.count) acoustic words over \(String(format: "%.1f", audioDuration))s, \(refWords.count) ref words")
+        for tw in candidates.prefix(5) {
+            print("🔗   acoustic '\(tw.word.text)' @ \(String(format: "%.1f", tw.estimatedTime))s")
+        }
+        for rw in refWords.prefix(5) {
+            print("🔗   ref '\(rw.text)' @ \(String(format: "%.1f", rw.timestamp))s")
+        }
+
+        // ── Monotonic sequential alignment ──────────────────────────
+        // Walk both lists forward in time order. Each ref word picks
+        // the highest-similarity acoustic word within a small forward
+        // lookahead, and the acoustic cursor only moves forward — so a
+        // later ref word can never re-match an earlier acoustic word.
         //
-        // An acoustic word "covers" a reference word if any of its
-        // characters are LCS-mapped to any character of the reference
-        // word. This handles CTC word merging: "halnam" covers both
-        // "halo" and "nama" because its chars map to chars in both
-        // reference words.
-
-        struct AcousticAssessment {
-            let acousticWord: AcousticWord
-            let coveredRefWordIndices: [Int]
-            let combinedRefText: String
-            let similarity: Float
-        }
-
-        var acousticAssessments: [AcousticAssessment] = []
-
-        for (acRange, acWord) in acWordRanges {
-            // Find which ref word indices this acoustic word covers
-            var coveredRefIdxs = Set<Int>()
-            for acCharIdx in acRange {
-                if let refCharIdx = acCharToRefChar[acCharIdx] {
-                    for (refWordIdx, (_, refRange)) in refWordRanges.enumerated() {
-                        if refRange.contains(refCharIdx) {
-                            coveredRefIdxs.insert(refWordIdx)
-                        }
-                    }
-                }
-            }
-            if coveredRefIdxs.isEmpty { continue }
-
-            let sortedRefIdxs = coveredRefIdxs.sorted()
-            // Combine covered reference words (no spaces) for comparison
-            let combinedRef = sortedRefIdxs.map { refWordRanges[$0].word }.joined()
-            let sim = EditDistance.similarity(normalize(combinedRef), normalize(acWord.text))
-
-            acousticAssessments.append(AcousticAssessment(
-                acousticWord: acWord,
-                coveredRefWordIndices: sortedRefIdxs,
-                combinedRefText: combinedRef,
-                similarity: sim
-            ))
-        }
-
-        // ── Step 4: For each reference word, find best assessment ────
-        //
-        // A reference word may be covered by multiple acoustic words
-        // (e.g. "kemampuan" heard as "ke" + "membuan"). We take the
-        // acoustic word with the highest similarity as the best
-        // representative for that reference word.
+        // Why this matters: the previous "best in ±3s window" search
+        // let later ref words steal earlier acoustic words when the
+        // similarity happened to be a touch better, producing visible
+        // drift (e.g. "dan" matched to "bantu", "bisa" matched to
+        // "seiga" while the right acoustic words were still ahead in
+        // the candidate list).
+        let jumpBackTolerance: TimeInterval = 2.0
+        let lookahead: Int = 5
+        let minCandidateSim: Float = 0.20
 
         var assessments: [WordAssessment] = []
-        for (refWordIdx, (refWord, _)) in refWordRanges.enumerated() {
-            let covering = acousticAssessments.filter {
-                $0.coveredRefWordIndices.contains(refWordIdx)
-            }
+        var acIdx = 0
 
-            if covering.isEmpty {
-                // No acoustic word covers this ref word → missed entirely
+        for refWord in refWords {
+            // Find the first candidate whose estimated time is at or
+            // after the ref word's time (with a small backward grace
+            // period so we don't skip a candidate that landed just
+            // before the ref boundary).
+            var searchStart = acIdx
+            while searchStart < candidates.count
+                    && candidates[searchStart].estimatedTime < refWord.timestamp - jumpBackTolerance {
+                searchStart += 1
+            }
+            if searchStart >= candidates.count {
+                // No acoustic word left in the timeline → unknownName
                 assessments.append(WordAssessment(
                     acousticWord: "—",
                     acousticConfidence: 0.0,
-                    referenceWord: refWord,
+                    referenceWord: refWord.text,
                     referenceSubstring: "",
                     similarity: 0.0,
-                    decision: .mispronounced
+                    decision: .unknownName
                 ))
                 continue
             }
 
-            // Take the assessment with the best (highest) similarity
-            let best = covering.max { $0.similarity < $1.similarity }!
-            let decision = bandDecision(
-                similarity: best.similarity,
-                acousticConfidence: best.acousticWord.confidence
-            )
+            // Within the next `lookahead` candidates, pick the one with
+            // the highest similarity to the current ref word. We use
+            // the MAX of Levenshtein similarity and containment
+            // similarity so Wav2Vec2 CTC word-merge cases (e.g. the
+            // model collapsing "my next" into "MYNE" or "a practice"
+            // into "APRACTIC") still score well when the ref word
+            // appears as a substring of the merged acoustic word.
+            let windowEnd = min(candidates.count, searchStart + lookahead)
+            var bestSim: Float = -1
+            var bestPick: Int? = nil
+            for k in searchStart..<windowEnd {
+                let ref = normalize(refWord.text)
+                let hyp = normalize(candidates[k].word.text)
+                let lev = EditDistance.similarity(ref, hyp)
+                let con = EditDistance.containmentSimilarity(ref, hyp)
+                let sim = max(lev, con)
+                if sim > bestSim {
+                    bestSim = sim
+                    bestPick = k
+                }
+            }
 
-            assessments.append(WordAssessment(
-                acousticWord: best.acousticWord.text,
-                acousticConfidence: best.acousticWord.confidence,
-                referenceWord: refWord,
-                referenceSubstring: best.combinedRefText,
-                similarity: best.similarity,
-                decision: decision
-            ))
+            if let pick = bestPick, bestSim >= minCandidateSim {
+                let acWord = candidates[pick].word
+                let ref = normalize(refWord.text)
+                let hyp = normalize(acWord.text)
+                // Use max(Levenshtein, containment) so word-merge
+                // candidates that contain the ref word score the same
+                // way they did at pick time (no surprise demotion).
+                let trueSim = max(
+                    EditDistance.similarity(ref, hyp),
+                    EditDistance.containmentSimilarity(ref, hyp)
+                )
+                let decision = bandDecision(
+                    similarity: trueSim,
+                    acousticConfidence: acWord.confidence
+                )
+                assessments.append(WordAssessment(
+                    acousticWord: acWord.text,
+                    acousticConfidence: acWord.confidence,
+                    referenceWord: refWord.text,
+                    referenceSubstring: acWord.text,
+                    similarity: trueSim,
+                    decision: decision
+                ))
+                // Advance the cursor past the chosen candidate so the
+                // same acoustic word can't be matched twice.
+                acIdx = pick + 1
+            } else {
+                // No good candidate in the lookahead → unknownName
+                assessments.append(WordAssessment(
+                    acousticWord: "—",
+                    acousticConfidence: 0.0,
+                    referenceWord: refWord.text,
+                    referenceSubstring: "",
+                    similarity: 0.0,
+                    decision: .unknownName
+                ))
+            }
         }
 
         // ── Debug output ────────────────────────────────────────────
         let mispronouncedCount = assessments.filter { $0.decision == .mispronounced }.count
-        print("🔗 alignment[\(languageCode)]: \(assessments.count) ref words (\(refWordRanges.count) in window), \(mispronouncedCount) mispronounced")
+        print("🔗 alignment[\(languageCode)]: \(assessments.count) ref words, \(mispronouncedCount) mispronounced")
         for (i, a) in assessments.enumerated() {
             let tag = a.decision == .match ? "✅" : (a.decision == .mispronounced ? "❌" : "⏭️")
             print("🔗   [\(i)] \(tag) ref=\"\(a.referenceWord ?? "")\" acoustic=\"\(a.acousticWord)\" sim=\(String(format: "%.2f", a.similarity)) conf=\(String(format: "%.2f", a.acousticConfidence)) → \(a.decision.rawValue)")
@@ -392,5 +449,33 @@ enum ArticulationAlignment {
         let filtered = String(String.UnicodeScalarView(scalars))
         return filtered.split(separator: " ", omittingEmptySubsequences: true)
             .joined(separator: "")
+    }
+
+    /// True when a meaningful fraction of `word` is taken up by runs
+    /// of the same character repeated 3+ times. Used to detect CTC
+    /// hallucinations at non-speech boundaries (e.g. "ubusemusemamama",
+    /// "sekaabumaabisbusekeabpsustelag") — these are produced when the
+    /// model has no real audio to decode and just loops on a token.
+    ///
+    /// The threshold (40% of the string being a 3+ run) is loose enough
+    /// not to flag legitimate words with one repeated syllable
+    /// ("pepaya", "massa") but tight enough to catch the patterns the
+    /// CTC decoder actually emits at boundaries.
+    private static func hasRepeatedCharacterRun(_ word: String) -> Bool {
+        let chars = Array(word.lowercased())
+        guard chars.count >= 6 else { return false }
+        var repeatedChars = 0
+        var i = 0
+        while i < chars.count {
+            var runLen = 1
+            while i + runLen < chars.count && chars[i + runLen] == chars[i] {
+                runLen += 1
+            }
+            if runLen >= 3 {
+                repeatedChars += runLen
+            }
+            i += runLen
+        }
+        return repeatedChars * 10 >= chars.count * 4
     }
 }

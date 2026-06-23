@@ -46,6 +46,13 @@ struct AppRootView: View {
                     destination(for: route)
                 }
         }
+        .task {
+            // Pre-load acoustic models as soon as the app appears.
+            // This ensures models are ready by the time the user
+            // finishes recording, eliminating the "model not ready"
+            // race condition.
+            analyzer.warmup()
+        }
         .environmentObject(historyStore)
         .toolbar {
             if onboardingComplete && shouldShowBottomBar {

@@ -1,6 +1,13 @@
-.DS_Store
-DerivedData/
+# Xcode
 build/
+DerivedData/
 *.xcuserstate
 xcuserdata/
 
+# ML Models (too large for GitHub)
+*.mlpackage/
+*.mlmodelc/
+*.mlmodel
+
+# macOS
+.DS_Store

@@ -106,4 +106,116 @@ enum ArticulationPipelineSpeech {
             return "'\(word)' could be slightly clearer. Emphasise the stressed syllable."
         }
     }
+
+    // MARK: - Dual-path pipeline (acoustic + reference)
+
+    /// Score + issues derived from the CHARACTER-LEVEL ALIGNMENT between
+    /// the Wav2Vec2 acoustic transcript and the SFSpeechRecognizer
+    /// reference transcript. Used when the Wav2Vec2 model is loaded
+    /// successfully (the preferred path).
+    ///
+    /// Behaviour:
+    /// - Each `WordAssessment` whose `decision == .mispronounced` becomes
+    ///   a `PronunciationIssue` whose `word` is the REFERENCE form
+    ///   (the one the recognizer agreed on), but whose `acousticWord`
+    ///   holds the raw form the user actually said.
+    /// - `.unknownName` assessments are excluded from both the issues
+    ///   list AND the score denominator (they represent OOV words, not
+    ///   articulation problems).
+    /// - `.match` assessments are not surfaced.
+    /// - Score = matched / scorable, where scorable = match + mispronounced
+    ///   (unknownName excluded). Returns 0.0 when no words are assessed.
+    static func runDualPath(
+        segments: [SFTranscriptionSegment],
+        assessments: [WordAssessment],
+        recordingDuration: TimeInterval,
+        languageCode: String = "en"
+    ) -> (score: Float, issues: [PronunciationIssue]) {
+        guard !assessments.isEmpty else { return (0.0, []) }
+
+        // ── Score calculation ───────────────────────────────────────
+        // Only count words that are "scorable" — match + mispronounced.
+        // unknownName words (foreign names, loanwords) are excluded
+        // from both numerator and denominator so they don't inflate
+        // or deflate the score.
+        let scorable = assessments.filter { $0.decision != .unknownName }
+        let matchedCount = scorable.filter { $0.decision == .match }.count
+        let scorableCount = scorable.count
+
+        let mispronounced = assessments.filter { $0.decision == .mispronounced }
+
+        // ── Build issues list ───────────────────────────────────────
+        var issues: [PronunciationIssue] = []
+        for assessment in mispronounced {
+            let refWordLower = (assessment.referenceWord ?? assessment.referenceSubstring).lowercased()
+
+            let segmentIdx: Int? = segments.firstIndex { seg in
+                let clean = seg.substring
+                    .trimmingCharacters(in: .punctuationCharacters)
+                    .trimmingCharacters(in: .whitespaces)
+                return clean.lowercased() == refWordLower
+            }
+
+            let windowStart: Int = segmentIdx.map { max(0, $0 - 5) } ?? 0
+            let windowEnd: Int = segmentIdx.map { min(segments.count - 1, $0 + 5) }
+                ?? max(0, segments.count - 1)
+            let window = (windowStart <= windowEnd) ? Array(segments[windowStart...windowEnd]) : []
+            let sentenceText = window.map { $0.substring }.joined(separator: " ")
+            let sentenceStart = TimeInterval(window.first?.timestamp ?? 0)
+            let lastSeg = window.last
+            let sentenceEnd = TimeInterval(lastSeg?.timestamp ?? 0) + TimeInterval(lastSeg?.duration ?? 0)
+            let sentenceDuration = max(1.0, sentenceEnd - sentenceStart)
+
+            let displayWord: String = {
+                if let ref = assessment.referenceWord, !ref.isEmpty { return ref }
+                if !assessment.referenceSubstring.isEmpty { return assessment.referenceSubstring }
+                return assessment.acousticWord
+            }()
+
+            let simPercent = Int((assessment.similarity * 100).rounded())
+            let suggestionText: String = {
+                if assessment.acousticConfidence < ArticulationAlignment.acousticConfidenceFloor {
+                    return "'\(displayWord)' was mumbled — confidence only \(Int(assessment.acousticConfidence * 100))%. Slow down and articulate each syllable."
+                }
+                return "'\(displayWord)' may have been mispronounced (matched at \(simPercent)%). The acoustic model heard '\(assessment.acousticWord)'. Listen back and try again."
+            }()
+
+            issues.append(PronunciationIssue(
+                word: displayWord,
+                timestamp: TimeInterval(segments[segmentIdx ?? 0].timestamp),
+                confidence: assessment.acousticConfidence,
+                suggestion: suggestionText,
+                sentences: [PronunciationExampleSentence(
+                    text: sentenceText,
+                    highlightedWord: displayWord,
+                    audioFileURL: nil,
+                    startTime: sentenceStart,
+                    duration: sentenceDuration
+                )],
+                acousticWord: assessment.acousticWord,
+                referenceWord: assessment.referenceWord,
+                isMispronounced: true,
+                isUnknownName: false,
+                renderedSentence: sentenceText
+            ))
+        }
+
+        // Dedup by lowercased reference word, keep the worst-confidence
+        // instance (lowest confidence = most clearly mispronounced).
+        var seen = Set<String>()
+        let deduped = issues
+            .sorted { $0.confidence < $1.confidence }
+            .filter { seen.insert($0.word.lowercased()).inserted }
+
+        // Score: matched / scorable (excluding unknownName from both).
+        // If there are no scorable words (all are unknown names or no
+        // assessments), return 0.0 — we have no evidence of clarity.
+        let score: Float = scorableCount > 0
+            ? Float(matchedCount) / Float(scorableCount)
+            : 0.0
+
+        print("🗣️ [\(languageCode)] dual-path: \(matchedCount)/\(scorableCount) matched (\(assessments.count - scorableCount) unknownName skipped) → score \(String(format: "%.2f", score))")
+        print("🗣️ flagged: \(deduped.map { $0.word })")
+        return (score, deduped)
+    }
 }

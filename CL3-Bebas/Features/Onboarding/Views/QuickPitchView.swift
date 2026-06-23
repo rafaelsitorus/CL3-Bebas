@@ -24,9 +24,9 @@ struct QuickPitchView: View {
         
             VStack(spacing: 6) {
                 Text("Try a Quick Pitch")
-                    .font(Text.CustomLargeTitle)
+                    .font(Text.TitleRegular)
                 Text("Record yourself reading this pitch below")
-                    .font(Text.CustomHeadline)
+                    .font(Text.CustomHeadlineTextRegular)
                     .foregroundColor(Color.GreyAccentSC)
             }
             .padding(.top, 8)

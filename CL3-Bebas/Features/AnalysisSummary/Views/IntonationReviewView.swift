@@ -115,7 +115,7 @@ struct IntonationReviewView: View {
     private var explanationText: some View {
         Text(explanation)
             .font(Text.CustomBody)
-            .foregroundStyle(.black.opacity(0.85))
+            .foregroundStyle(.primary.opacity(0.85))
             .fixedSize(horizontal: false, vertical: true)
     }
 

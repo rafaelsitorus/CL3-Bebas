@@ -96,6 +96,29 @@ class SpeechAnalyzer: ObservableObject {
     /// is deferred to warmup() which runs on a background thread.
     private let phonemeRunner = PhonemeModelRunner()
 
+    /// Acoustic-path (Wav2Vec2 CTC) runner. Created in `init`, but the
+    /// underlying MLModel is loaded lazily on `warmup()` so init stays
+    /// cheap. Picks the EN/ID bundle based on `languageCode` at the
+    /// point of the first `analyze(...)` call.
+    private let acousticEN = Wav2Vec2AcousticRunner(
+        modelName: "Wav2Vec2_EN",
+        vocabResource: "wav2vec2_vocab_en"
+    )
+    private let acousticID = Wav2Vec2AcousticRunner(
+        modelName: "Wav2Vec2_ID",
+        vocabResource: "wav2vec2_vocab_id"
+    )
+    private var acousticRunner: Wav2Vec2AcousticRunner {
+        languageCode == "en" ? acousticEN : acousticID
+    }
+
+    /// One-shot guard so `warmup()` is safe to call from multiple sites
+    /// (e.g. `init`, `analyze`, external caller). `warmup()` itself
+    /// fires off background MLModel loads that are themselves
+    /// idempotent, but we don't want to spam the same DispatchQueue
+    /// with redundant work.
+    private var didWarmup = false
+
     var languageCode: String = "id" {
         didSet {
             let locale = languageCode == "en"
@@ -113,8 +136,23 @@ class SpeechAnalyzer: ObservableObject {
     }
     
     func warmup() {
-        // Model disabled for now — just prime the speech recognizer
+        // Idempotent: only the first call kicks off the background
+        // MLModel loads. Subsequent calls are no-ops. This makes it
+        // safe to call from both `analyze()` (auto-warmup) and any
+        // external caller that wants to pre-load on app launch.
+        guard !didWarmup else { return }
+        didWarmup = true
+
+        // Prime the speech recognizer
         _ = speechRecognizer?.isAvailable
+        // Kick off background loads for BOTH language variants so the
+        // model is ready by the time the user finishes recording,
+        // regardless of which language they pick. Each load is fire-
+        // and-forget on a background queue (see
+        // `Wav2Vec2AcousticRunner.loadModelAsync`).
+        acousticEN.loadModelAsync()
+        acousticID.loadModelAsync()
+        print("🧠 warmup() dispatched acoustic model loads")
     }
     // MARK: - Live Transcription
 
@@ -159,6 +197,12 @@ class SpeechAnalyzer: ObservableObject {
         progress = 0
         defer { isAnalyzing = false }
 
+        // Auto-warmup: kick off the acoustic model load on the first
+        // analysis if no one else called `warmup()` (e.g. on app launch).
+        // Subsequent analyze() calls short-circuit thanks to the
+        // `didWarmup` guard inside `warmup()`.
+        warmup()
+
         guard let fileURL = audioData.audioFileURL else { throw AnalysisError.noAudioFile }
 
         let (segments, fullText) = try await transcribe(fileURL: fileURL)
@@ -201,13 +245,79 @@ class SpeechAnalyzer: ObservableObject {
         let intonation = pitchVariance < 400 ? "Flat" : "Varied"
         progress = 0.65
 
-        // ── Articulation (Speech confidence) ───────────────────────────
-        let (rawArticulationScore, pronunciationIssues) = ArticulationPipelineSpeech.run(
-            segments: segments,
-            recordingDuration: duration,
-            languageCode: languageCode
-        )
-        let articulationScore: Float = segments.isEmpty ? 0.5 : max(rawArticulationScore, 0.0)
+        // ── Articulation (dual-path: acoustic Wav2Vec2 + reference) ──
+        //
+        // Preferred path: run the Wav2Vec2 acoustic model on the
+        // 16 kHz resampled audio, align its transcript with the
+        // SFSpeechRecognizer reference, and flag words that disagree
+        // (highlights mispronounced dictionary words, ignores
+        // out-of-vocabulary names/loanwords).
+        //
+        // Fallback: if the acoustic model isn't loaded (e.g. simulator
+        // without the .mlpackage bundled, or loadModelAsync() didn't
+        // finish in time), fall back to the legacy Speech-confidence
+        // pipeline so the screen always renders something.
+        //
+        // IMPORTANT for languages where SFSpeech returns confidence=0
+        // (notably `id-ID` on iOS 26 simulator where no on-device model
+        // is available): the legacy pipeline degrades to "everything is
+        // unclear" (score 0). We give the acoustic model a short grace
+        // window so a model that finished loading AFTER `analyze()`
+        // started (but before this block runs) still gets used.
+        let (rawArticulationScore, pronunciationIssues): (Float, [PronunciationIssue]) = await {
+            if !acousticRunner.isReady {
+                // Short grace window — the MLModel load is async; by the
+                // time we reach this line the load may have just finished.
+                // Wait up to ~1.5s in 150 ms slices before giving up.
+                for _ in 0..<10 where !acousticRunner.isReady {
+                    try? await Task.sleep(nanoseconds: 150_000_000)
+                }
+            }
+            if acousticRunner.isReady {
+                do {
+                    let samples = try SpeechAnalyzer.resampleTo16kStatic(fileURL: fileURL)
+                    let transcript = acousticRunner.transcribe(samples: samples)
+                    let assessments = ArticulationAlignment.run(
+                        refSegments: segments,
+                        acoustic: transcript,
+                        languageCode: languageCode
+                    )
+
+                    // ── Reliability check ────────────────────────────
+                    // If the acoustic model's output doesn't align well
+                    // with the reference (average similarity of scorable
+                    // words below threshold), the model is unreliable
+                    // for this language/recording. Fall back to legacy.
+                    // This commonly triggers for Indonesian Wav2Vec2
+                    // which produces high-confidence but inaccurate
+                    // character output.
+                    let scorable = assessments.filter { $0.decision != .unknownName }
+                    let avgSim: Float = scorable.isEmpty ? 0.0 :
+                        scorable.map { $0.similarity }.reduce(0, +) / Float(scorable.count)
+
+                    if !assessments.isEmpty && avgSim < 0.40 {
+                        print("⚠️ Acoustic model unreliable (avgSim=\(String(format: "%.2f", avgSim)), \(scorable.count) scorable) — falling back to legacy pipeline")
+                    } else {
+                        return ArticulationPipelineSpeech.runDualPath(
+                            segments: segments,
+                            assessments: assessments,
+                            recordingDuration: duration,
+                            languageCode: languageCode
+                        )
+                    }
+                } catch {
+                    print("⚠️ Acoustic path failed (\(error)) — falling back to legacy pipeline")
+                }
+            } else {
+                print("⚠️ Acoustic model not ready — falling back to legacy pipeline")
+            }
+            return ArticulationPipelineSpeech.run(
+                segments: segments,
+                recordingDuration: duration,
+                languageCode: languageCode
+            )
+        }()
+        let articulationScore: Float = (segments.isEmpty && fullText.isEmpty) ? 0.0 : max(rawArticulationScore, 0.0)
 
         progress = 0.85
 

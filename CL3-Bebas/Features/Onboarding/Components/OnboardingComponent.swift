@@ -86,22 +86,21 @@ struct FeatureRow: View {
     let description: String
 
     var body: some View {
-        HStack(alignment: .top, spacing: 14) {
+        HStack(alignment: .top, spacing: 18) {
             ZStack {
-                Circle()
-                    .fill(Color.whiteSC)
-                    .frame(width: 36, height: 36)
                 Image(systemName: icon)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(Color.BluePrimaryBC)
+                    .font(.system(size: 22))
+                    .foregroundColor(Color.blue)
+                    .padding(.top, 4)
+
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(Text.CustomHeadline)
-                    .foregroundColor(.primary)
+                    .font(Text.CustomHeadlineCard)
+                    .foregroundColor(.blue)
                 Text(description)
-                    .font(Text.CustomHeadline)
-                    .foregroundColor(Color.GreyAccentSC)
+                    .font(Text.CustomHeadlineTextRegular)
+                    .foregroundColor(Color.primary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }

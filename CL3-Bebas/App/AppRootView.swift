@@ -225,13 +225,10 @@ struct AppRootView: View {
             presentedRecording = true
         } label: {
             Image(systemName: AppIcon.micIcon)
-                .font(.system(size: 20, weight: .semibold))
+                .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(.primary)
-                .frame(width: 44, height: 44)
-                .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .padding(.trailing, 8)
     }
 
     private func bottomBarButton(

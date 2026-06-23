@@ -131,6 +131,9 @@ class AudioRecorder: NSObject, ObservableObject {
         let pausedNow = pausedDuration + (pauseStartedAt.map { Date().timeIntervalSince($0) } ?? 0)
         let duration = startTime.map { Date().timeIntervalSince($0) - pausedNow } ?? 0
         pauseStartedAt = nil
+        
+        let nonZero = pitchSamples.filter { $0 > 0 }.count
+        print("🎵 pitch samples: \(pitchSamples.count) total, \(nonZero) voiced")
 
         return AudioSampleData(
             amplitudeSamples: amplitudeSamples,

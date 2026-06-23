@@ -332,7 +332,7 @@ struct ReviewSummaryView: View {
         overallScore: 0.5,
         pitchSamples: [],
         pitchVariance: 600,
-        intonationLabel: "Varied",
+        intonationLabel: "Expressive",
         amplitudeSamples: [],
         articulationScore: 0.43,
         pronunciationIssues: [],

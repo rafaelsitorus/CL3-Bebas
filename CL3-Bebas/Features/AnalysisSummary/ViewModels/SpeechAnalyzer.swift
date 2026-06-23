@@ -46,7 +46,6 @@ struct AnalysisResult {
             let paceScore: Float = {
                 switch paceLabel {
                 case "Ideal": return 1.0
-                case "Normal": return 0.85
                 case "Fast", "Slow": return 0.65
                 case "Too Fast", "Too Slow": return 0.35
                 default: return 0.5
@@ -54,7 +53,7 @@ struct AnalysisResult {
             }()
 
             let intonationScore: Float =
-                intonationLabel == "Varied" ? 1.0 : 0.5
+                intonationLabel == "Expressive" ? 1.0 : 0.5
 
             return articulationScore * 0.4
                  + paceScore * 0.3
@@ -242,7 +241,7 @@ class SpeechAnalyzer: ObservableObject {
         let pitchMean = voiced.isEmpty ? 0 : voiced.reduce(0, +) / Float(voiced.count)
         let pitchVariance = voiced.isEmpty ? 0 :
             voiced.map { ($0 - pitchMean) * ($0 - pitchMean) }.reduce(0, +) / Float(voiced.count)
-        let intonation = pitchVariance < 400 ? "Flat" : "Varied"
+        let intonation = pitchVariance < 400 ? "Flat" : "Expressive"
         progress = 0.65
 
         // ── Articulation (dual-path: acoustic Wav2Vec2 + reference) ──
@@ -522,8 +521,7 @@ class SpeechAnalyzer: ObservableObject {
         switch wpm {
         case ..<80:    return "Too Slow"
         case 80..<110: return "Slow"
-        case 110...130: return "Normal"
-        case 130...160: return "Ideal"
+        case 110...160: return "Ideal"
         case 160...200: return "Fast"
         default:       return "Too Fast"
         }

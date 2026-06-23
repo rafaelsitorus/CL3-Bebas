@@ -358,7 +358,7 @@ struct HistoryView: View {
         overallScore: 0.82,
         pitchSamples: (0..<100).map { _ in Float.random(in: 80...300) },
         pitchVariance: 600,
-        intonationLabel: "Varied",
+        intonationLabel: "Expressive",
         amplitudeSamples: (0..<100).map { _ in Float.random(in: -45 ... -10) },
         articulationScore: 0.78,
         pronunciationIssues: [],

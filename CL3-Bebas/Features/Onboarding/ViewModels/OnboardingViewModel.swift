@@ -313,7 +313,7 @@ final class OnboardingViewModel: ObservableObject {
             volumeLabel: volumeLabel(for: averageAmplitude),
             pitchSamples: audioData.pitchSamples,
             pitchVariance: pitchVariance,
-            intonationLabel: pitchVariance < 400 ? "Flat" : "Varied",
+            intonationLabel: pitchVariance < 400 ? "Flat" : "Expressive",
             amplitudeSamples: audioData.amplitudeSamples,
             articulationScore: transcribedText.isEmpty ? 0.4 : 0.7,
             pronunciationIssues: [],

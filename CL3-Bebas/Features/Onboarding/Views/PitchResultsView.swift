@@ -70,7 +70,7 @@ struct PitchResultsView: View {
                     )
                 }
             }
-            .padding(.horizontal, 24)
+            .padding(.horizontal, 20)
             .buttonStyle(.plain)
 
             Spacer()

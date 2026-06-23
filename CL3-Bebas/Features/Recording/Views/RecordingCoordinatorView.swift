@@ -9,8 +9,8 @@ import SwiftUI
 
 struct RecordPitchCoordinatorView: View {
 
-    // Change signature: onFinished now delivers the captured audio + language
-    let onFinished: (AudioSampleData, String) -> Void
+    // Change signature: onFinished now delivers the captured audio + language + title
+    let onFinished: (AudioSampleData, String, String) -> Void
     let onLanguageConfirmed: () -> Void
     let onCancelled: () -> Void
 
@@ -19,7 +19,7 @@ struct RecordPitchCoordinatorView: View {
     init(
         isPreview: Bool = false,
         onLanguageConfirmed: @escaping () -> Void = {},
-        onFinished: @escaping (AudioSampleData, String) -> Void = { _, _ in },
+        onFinished: @escaping (AudioSampleData, String, String) -> Void = { _, _, _ in },
         onCancelled: @escaping () -> Void = {}
     ) {
         self.onLanguageConfirmed = onLanguageConfirmed
@@ -54,8 +54,9 @@ struct RecordPitchCoordinatorView: View {
                         // build a dummy result while the real
                         // analyzer is being wired up.
                         let langCode = viewModel.selectedLanguage == .english ? "en" : "id"
+                        let title = viewModel.recordingTitle
                         if let sample = viewModel.lastSample {
-                            onFinished(sample, langCode)
+                            onFinished(sample, langCode, title)
                         } else {
                             // lastSample may be nil if the user
                             // tapped confirm before the recorder
@@ -66,7 +67,8 @@ struct RecordPitchCoordinatorView: View {
                                 AudioSampleData(
                                     recordingDuration: TimeInterval(viewModel.elapsedSeconds)
                                 ),
-                                langCode
+                                langCode,
+                                title
                             )
                         }
                     },

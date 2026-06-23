@@ -46,7 +46,6 @@ struct AnalysisResult {
             let paceScore: Float = {
                 switch paceLabel {
                 case "Ideal": return 1.0
-                case "Normal": return 0.85
                 case "Fast", "Slow": return 0.65
                 case "Too Fast", "Too Slow": return 0.35
                 default: return 0.5
@@ -522,8 +521,7 @@ class SpeechAnalyzer: ObservableObject {
         switch wpm {
         case ..<80:    return "Too Slow"
         case 80..<110: return "Slow"
-        case 110...130: return "Normal"
-        case 130...160: return "Ideal"
+        case 110...160: return "Ideal"
         case 160...200: return "Fast"
         default:       return "Too Fast"
         }

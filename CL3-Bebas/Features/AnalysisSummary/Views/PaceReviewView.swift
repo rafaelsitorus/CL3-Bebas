@@ -23,8 +23,8 @@ struct PaceReviewView: View {
                         ScaleTick(fraction: 0.0,
                                   label: "60",
                                   isBold: false),
-                        ScaleTick(fraction: 0.5,
-                                  label: "130",
+                        ScaleTick(fraction: 0.3,
+                                  label: "110",
                                   isBold: false),
                         ScaleTick(fraction: 0.714,
                                   label: "160",
@@ -37,8 +37,8 @@ struct PaceReviewView: View {
                                   isBold: false),
                     ],
                     leadingLabel: "Too Slow",
-                    trailingLabel: result.wordsPerMinute > 160 ? "Too Fast" : "Normal",
-                    highlightRange: 0.5...0.714,
+                    trailingLabel: result.wordsPerMinute > 160 ? "Too Fast" : "Ideal",
+                    highlightRange: 0.3...0.714,
                     highlightColor: Color.BarGreenAnalysis,
                     dotColor: paceColor,
                     activeEndpoint: paceActiveEndpoint
@@ -88,10 +88,7 @@ struct PaceReviewView: View {
     
     
     private var paceColor: Color {
-        switch result.paceLabel {
-        case "Ideal": return Color.MainGreenAnalysis
-        default: return Color.MainRedAnalysis
-        }
+        result.paceLabel == "Ideal" ? Color.MainGreenAnalysis : Color.MainRedAnalysis
     }
 
     private var explanationText: some View {
@@ -135,7 +132,7 @@ struct PaceReviewView: View {
     
     private var paceActiveEndpoint: AnalysisScaleView.ActiveEndpoint {
         switch result.paceLabel {
-        case "Normal", "Ideal": return .trailing   // "Normal" lights up
+        case "Ideal": return .trailing
         case "Too Slow", "Slow": return .leading   // "Too Slow" lights up
         default: return .trailing                  // Too Fast → "Too Fast" lights up
         }
@@ -149,7 +146,7 @@ struct PaceReviewView: View {
             return "You're speaking very slowly at \(Int(result.wordsPerMinute)) WPM. While clarity matters, too slow a pace can lose your listener's attention. Aim for at least 110 WPM."
         case "Slow":
             return "Your pace of \(Int(result.wordsPerMinute)) WPM is a little below the ideal range. Picking up slightly will help keep your audience engaged."
-        case "Normal", "Ideal":
+        case "Ideal":
             return "Your pace of \(Int(result.wordsPerMinute)) WPM is right in the sweet spot. Listeners can follow your ideas comfortably without feeling rushed."
         case "Fast":
             return "At \(Int(result.wordsPerMinute)) WPM you're moving quickly. Slowing down slightly gives listeners time to absorb each point before you move on."
@@ -189,8 +186,8 @@ struct PaceReviewView: View {
             result: AnalysisResult(
                 transcription: "Selamat pagi, saya ingin mempresentasikan produk kami.",
                 duration: 20,
-                wordsPerMinute: 175,
-                paceLabel: "Too Fast",
+                wordsPerMinute: 150,
+                paceLabel: "Ideal",
                 averageAmplitudeDB: -22,
                 volumeLabel: "Good",
                 pitchSamples: [],

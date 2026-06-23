@@ -55,7 +55,7 @@ struct IntonationReviewView: View {
                                   label: pdqDisplay,
                                   isBold: true),
                         ScaleTick(fraction: 1.0,
-                                  label: "0.16",
+                                  label: "1",
                                   isBold: false),
                     ],
                     leadingLabel: "Flat",

@@ -222,8 +222,7 @@ class AudioRecorder: NSObject, ObservableObject {
                 self?.processBuffer(buffer, elapsedSeconds: elapsed)
             }
             
-            // ← ADD THIS
-            try audioEngine.start()
+            
 
 
             amplitudeSamples = []
@@ -231,8 +230,9 @@ class AudioRecorder: NSObject, ObservableObject {
             startTime = Date()
             pausedDuration = 0
             pauseStartedAt = nil
+            
+            try audioEngine.start()
             isRecording = true
-
             startDisplayLink()
 
         } catch {
@@ -316,7 +316,7 @@ class AudioRecorder: NSObject, ObservableObject {
         // Check if signal is loud enough
         var rms: Float = 0
         vDSP_rmsqv(&buf, 1, &rms, vDSP_Length(n))
-        guard rms > 0.01 else { return 0 } // silence : no pitch
+        guard rms > 0.001 else { return 0 } // silence : no pitch
 
         // Autocorrelation with signal itself
         var acf = [Float](repeating: 0, count: n)

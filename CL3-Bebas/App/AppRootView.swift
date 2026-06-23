@@ -63,8 +63,14 @@ struct AppRootView: View {
                 NavigationStack {
                     RecordPitchCoordinatorView(
                         onLanguageConfirmed: {},
-                        onFinished: { audioData, langCode in
-                            
+                        onFinished: { audioData, langCode, recordingTitle in
+                            // Keep the cover open. Swap the
+                            // recording pages for the analysing
+                            // view (pulsing icon + spinner) and run
+                            // the real analyzer on a background
+                            // task. When it finishes we dismiss the
+                            // cover and push ReviewSummary onto the
+                            // main stack.
                             isAnalyzing = true
                             analyzer.languageCode = langCode
                 
@@ -76,7 +82,8 @@ struct AppRootView: View {
                                     historyStore.configure(modelContext: modelContext)
                                     let saved = historyStore.save(
                                         result: result,
-                                        languageCode: langCode
+                                        languageCode: langCode,
+                                        title: recordingTitle
                                     )
                                     if let saved {
                                         print("✅ Saved recording to SwiftData: \(saved.title)")

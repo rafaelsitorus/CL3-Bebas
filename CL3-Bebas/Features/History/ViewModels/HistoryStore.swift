@@ -6,7 +6,7 @@
 //  `RecordingHistoryModel` and are queried by `HistoryView` via
 //  `@Query`. This type exposes the only side-effects the rest of the
 //  app needs:
-//    - `save(result:languageCode:)` — call it once a recording finishes
+//    - `save(result:languageCode:title:)` — call it once a recording finishes
 //      analysis and a new row will appear at the top of the History
 //      list.
 //    - `rename(model:to:)` — call it when the user edits a recording's
@@ -66,8 +66,14 @@ final class HistoryStore: ObservableObject {
     ///
     /// `languageCode` is "en" or "id" (matches what
     /// `AppRootView` already extracts from `PitchLanguage`).
+    /// `requestedTitle` is the editable title from the recording
+    /// language-selection screen.
     @discardableResult
-    func save(result: AnalysisResult, languageCode: String) -> RecordingHistoryModel? {
+    func save(
+        result: AnalysisResult,
+        languageCode: String,
+        title requestedTitle: String? = nil
+    ) -> RecordingHistoryModel? {
         // Refuse to save if the `ModelContext` has not been wired
         // yet — this should never happen in practice because
         // `AppRootView` calls `configure(modelContext:)` before
@@ -83,14 +89,15 @@ final class HistoryStore: ObservableObject {
         // 2. Derive the [SpeechIssue] badge list from the analysis.
         let issues = deriveIssues(from: result)
 
-        // 3. Pick a display title. We use a sequential counter
-        //    derived from the existing row count so the user sees
-        //    "Recording 1", "Recording 2", etc. — but we read the
-        //    count from SwiftData, not from an in-memory @Published.
+        // 3. Pick a display title. Prefer the editable title from
+        //    the language-selection screen, falling back to a
+        //    sequential SwiftData count for empty titles.
         let existingCount = (try? modelContext.fetchCount(
             FetchDescriptor<RecordingHistoryModel>()
         )) ?? 0
-        let title = "Recording \(existingCount + 1)"
+        let fallbackTitle = "Recording \(existingCount + 1)"
+        let trimmedTitle = requestedTitle?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let title = trimmedTitle.isEmpty ? fallbackTitle : trimmedTitle
 
         // 4. Build + insert the model. We pass through EVERY field
         //    of `AnalysisResult` that any downstream review screen

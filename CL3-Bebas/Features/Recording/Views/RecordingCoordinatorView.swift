@@ -14,8 +14,8 @@ enum RecordPitchStep: Hashable {
 
 struct RecordPitchCoordinatorView: View {
 
-    // Change signature: onFinished now delivers the captured audio + language
-    let onFinished: (AudioSampleData, String) -> Void
+    // Change signature: onFinished now delivers the captured audio + language + title
+    let onFinished: (AudioSampleData, String, String) -> Void
     let onLanguageConfirmed: () -> Void
     let onCancelled: () -> Void
 
@@ -33,7 +33,7 @@ struct RecordPitchCoordinatorView: View {
     init(
         isPreview: Bool = false,
         onLanguageConfirmed: @escaping () -> Void = {},
-        onFinished: @escaping (AudioSampleData, String) -> Void = { _, _ in },
+        onFinished: @escaping (AudioSampleData, String, String) -> Void = { _, _, _ in },
         onCancelled: @escaping () -> Void = {}
     ) {
         self.onLanguageConfirmed = onLanguageConfirmed
@@ -43,6 +43,7 @@ struct RecordPitchCoordinatorView: View {
     }
 
     var body: some View {
+<<<<<<< HEAD
         // Single `NavigationStack` whose root is the language
         // selection page and whose pushed destination is the
         // recording page. The back chevron and the iOS edge

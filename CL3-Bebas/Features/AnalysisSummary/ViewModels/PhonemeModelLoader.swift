@@ -53,9 +53,6 @@ final class PhonemeModelRunner {
     private let phonemeTable: [String]
     private let ignoredTokens: Set<String> = ["<pad>", "<s>", "</s>", "<unk>", "|"]
 
-    /// Synchronous init — only loads vocab (fast, just JSON).
-    /// Call `loadModelAsync()` immediately after to start the heavy work
-    /// on a background thread.
     init(modelName: String = "Wav2Vec2Phoneme") {
         self.vocab = PhonemeVocab.load()
         self.phonemeTable = vocab?.phonemeTable() ?? []

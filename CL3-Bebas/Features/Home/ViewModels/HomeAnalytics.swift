@@ -160,9 +160,17 @@ struct HomeAnalytics {
 
         // ── Articulation ────────────────────────────────────────
         // Average articulation score 0...1. We display the pill as
-        // a 0–100 "Clarity" score so the number reads the same way
-        // as the per-recording `articulationScore` percentage.
+        // the *inaccuracy* percentage — the same metric
+        // `ArticulationReviewView` shows next to "INACCURACY" at
+        // the top of that detail screen — so the Home pill and the
+        // detail screen read as the same number.
+        //
+        // inaccuracy = 1 − articulationScore (clamped to 0…1 so a
+        // tiny floating-point error can't push us above 100 %).
         let avgArticulation = slice.map { $0.articulationScore }.reduce(0, +) / Float(slice.count)
+        let inaccuracy = max(0, min(1, 1 - avgArticulation))
+        let inaccuracyPercent = Int((inaccuracy * 100).rounded())
+
         let articulationStatus: String
         switch avgArticulation {
         case 0.85...: articulationStatus = "Excellent"
@@ -172,7 +180,7 @@ struct HomeAnalytics {
         }
         self.articulation = MetricSummary(
             status: articulationStatus,
-            pillLabel: "Average: \(Int((avgArticulation * 100).rounded())) Clarity",
+            pillLabel: "Average: \(inaccuracyPercent)% Inaccuracy",
             tip: Self.randomArticulationTip()
         )
     }

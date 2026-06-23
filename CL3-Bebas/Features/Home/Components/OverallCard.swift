@@ -2,17 +2,7 @@
 //  OverallCard.swift
 //  CL3-Bebas
 //
-//  Card used on the Home "Overall Analysis" carousel. One card per
-//  paralinguistic metric (Pace, Articulation, Intonation) — each
-//  renders:
-//    - title (e.g. "Pace")
-//    - status (e.g. "Too Fast") — the metric's *current* label
-//    - icon (SF Symbol)
-//    - description (one randomly-chosen improvement tip)
-//    - optional pillLabel rendered as a small capsule at the bottom
-//      of the description, used to show the average value across
-//      the last N recordings (e.g. "Average: 168 WPM").
-//
+
 
 import SwiftUI
 
@@ -43,6 +33,19 @@ struct OverallCard: View {
         }
     }
     
+    
+    private var pillColors: (foreground: Color, background: Color) {
+        switch (title, status) {
+        case ("Pace", "Ideal"), ("Pace", "Normal"),
+             ("Intonation", "Expressive"), ("Intonation", "Varied"),
+             ("Articulation", "Clear"):
+            return (.DarkGreen, .TintGreen)
+        default:
+            return (.DarkRed, .TintRed)
+        }
+    }
+    
+    
     var body: some View {
             VStack(alignment: .leading, spacing: 15) {
                 HStack(alignment: .top) {
@@ -70,10 +73,10 @@ struct OverallCard: View {
                 if let pillLabel {
                     Text(pillLabel)
                         .font(Text.CustomFootnote)
-                        .foregroundStyle(Color.SemanticMainRed)
+                        .foregroundStyle(pillColors.foreground)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 5)
-                        .background(Color.SemanticTintRed)
+                        .background(pillColors.background)
                         .clipShape(Capsule())
                 }
             }

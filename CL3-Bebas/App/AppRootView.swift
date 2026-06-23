@@ -184,14 +184,17 @@ struct AppRootView: View {
         }
     }
 
+    // Replace your bottomBarLeading, bottomBarTrailing, and bottomBarButton with these:
+
+    
 
     private var bottomBarLeading: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 4) {
             bottomBarButton(
                 systemImage: "house.fill",
+                label: "Home",
                 isActive: currentTab == .home
-            )
-            {
+            ) {
                 if currentTab != .home {
                     currentTab = .home
                     onboardingViewModel.path = NavigationPath()
@@ -199,6 +202,7 @@ struct AppRootView: View {
             }
             bottomBarButton(
                 systemImage: "clock.arrow.circlepath",
+                label: "History",
                 isActive: currentTab == .history
             ) {
                 if currentTab != .history {
@@ -207,33 +211,50 @@ struct AppRootView: View {
                 }
             }
         }
-        .padding(.horizontal, 10)
     }
 
     private var bottomBarTrailing: some View {
-        bottomBarButton(
-            systemImage: AppIcon.micIcon,
-            isActive: false,
-            isPrimary: true
-        ) {
+        Button {
             presentedRecording = true
+        } label: {
+            Image(systemName: AppIcon.micIcon)
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(.primary)
+                .frame(width: 44, height: 44)
+                .contentShape(Circle())
         }
+        .buttonStyle(.plain)
+        .padding(.trailing, 8)
     }
 
     private func bottomBarButton(
         systemImage: String,
-        isActive: Bool = false,
-        isPrimary: Bool = false,
+        label: String,
+        isActive: Bool,
         action: @escaping () -> Void
     ) -> some View {
-        let icon = Image(systemName: systemImage)
-            .font(.system(size: 18, weight: .semibold))
-            .foregroundStyle(isActive ? Color.accentColor : .primary)
-            .frame(width: 44, height: 44)
-            .contentShape(isPrimary ? AnyShape(Circle()) : AnyShape(Rectangle()))
+        Button(action: action) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .fill(Color(.systemGray5))
+                    .frame(width: 80, height: 48)
+                    .opacity(isActive ? 1 : 0)
+                    .animation(.spring(response: 0.35, dampingFraction: 0.75), value: isActive)
 
-        return Button(action: action) { icon }
-            .buttonStyle(.plain)
+                VStack(spacing: 3) {
+                    Image(systemName: systemImage)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(isActive ? Color.accentColor : Color.secondary)
+                    Text(label)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(isActive ? Color.accentColor : Color.secondary)
+                }
+            }
+            .frame(width: 80, height: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .animation(.spring(response: 0.35, dampingFraction: 0.75), value: isActive)
     }
 }
 
